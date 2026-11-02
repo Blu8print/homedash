@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# Local Claude Code settings (may contain secrets in allowed commands)
+.claude/settings.local.json

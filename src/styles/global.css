@@ -1,0 +1,41 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Color palette */
+  --color-bg: #f0ebe0;
+  --color-sidebar: #1a1a1a;
+  --color-sidebar-text: #ffffff;
+  --color-text: #1a1a1a;
+  --color-text-muted: #666666;
+  --color-card: #ffffff;
+  --color-card-alt: #f5f0e8;
+  --color-border: #e0dbd0;
+  --color-accent-yellow: #f5c842;
+  --color-accent-yellow-bg: #fdf3c0;
+
+  /* Family member colors */
+  --color-wes: #3b82f6;
+  --color-claudia: #ec4899;
+  --color-buzzsaw: #10b981;
+  --color-skidmark: #f59e0b;
+
+  /* Typography */
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-sans: system-ui, -apple-system, sans-serif;
+
+  /* Spacing */
+  --sidebar-width: 80px;
+  --gap: 16px;
+  --radius: 12px;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
