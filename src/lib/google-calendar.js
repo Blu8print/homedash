@@ -5,12 +5,22 @@ const HEADER_VALUE = import.meta.env.VITE_BUDGET_API_HEADER;
 async function post(body) {
   const headers = { 'Content-Type': 'application/json' };
   if (HEADER_NAME && HEADER_VALUE) headers[HEADER_NAME] = HEADER_VALUE;
-  const res = await fetch(WEBHOOK_URL, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`Calendar webhook ${res.status}`);
+  console.log('[calendar] POST', WEBHOOK_URL, body);
+  console.log('[calendar] headers', { ...headers, [HEADER_NAME]: HEADER_VALUE ? '***' : undefined });
+  let res;
+  try {
+    res = await fetch(WEBHOOK_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+  } catch (err) {
+    console.error('[calendar] fetch threw (likely CORS/network):', err.message, err);
+    throw err;
+  }
+  console.log('[calendar] status', res.status, res.statusText);
+  console.log('[calendar] response headers', Object.fromEntries(res.headers.entries()));
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error('[calendar] error body:', text);
+    throw new Error(`Calendar webhook ${res.status}: ${text}`);
+  }
   return res.json();
 }
 
