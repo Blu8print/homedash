@@ -20,8 +20,11 @@ export class HomeApp extends LitElement {
   static styles = css`
     :host {
       display: flex;
-      height: 100vh;
+      width: calc(100vw / var(--app-scale, 1));
+      height: calc(100vh / var(--app-scale, 1));
       overflow: hidden;
+      transform: scale(var(--app-scale, 1));
+      transform-origin: top left;
     }
     main {
       flex: 1;
@@ -40,6 +43,25 @@ export class HomeApp extends LitElement {
     window.addEventListener('hashchange', () => {
       this.activeSection = location.hash.slice(1) || 'today';
     });
+    this._idleTimeout = null;
+    this._resetIdle = () => {
+      clearTimeout(this._idleTimeout);
+      this._idleTimeout = setTimeout(() => {
+        location.hash = 'today';
+      }, 3 * 60 * 1000);
+    };
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(e =>
+      window.addEventListener(e, this._resetIdle, { passive: true })
+    );
+    this._resetIdle();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this._idleTimeout);
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(e =>
+      window.removeEventListener(e, this._resetIdle)
+    );
   }
 
   render() {

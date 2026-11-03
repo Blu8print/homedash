@@ -228,7 +228,7 @@ export class HomeSettings extends LitElement {
   _setScale(v) {
     this._scale = v;
     localStorage.setItem(SCALE_KEY, v);
-    document.documentElement.style.zoom = v;
+    document.documentElement.style.setProperty('--app-scale', v);
   }
 
   _close() {
@@ -314,5 +314,5 @@ customElements.define('home-settings', HomeSettings);
 
 export function applyStoredScale() {
   const v = localStorage.getItem(SCALE_KEY);
-  if (v) document.documentElement.style.zoom = v;
+  if (v) document.documentElement.style.setProperty('--app-scale', v);
 }
