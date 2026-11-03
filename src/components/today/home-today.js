@@ -627,6 +627,102 @@ export class HomeToday extends LitElement {
       color: var(--color-text-muted);
       padding: 8px 0;
     }
+
+    /* ── Next Up ── */
+    .next-up-card {
+      background: #f59e0b;
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-sizing: border-box;
+    }
+    .next-up-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(0,0,0,0.45);
+      margin-bottom: 10px;
+    }
+    .next-up-hero {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .next-up-hero-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .next-up-title {
+      font-family: var(--font-serif);
+      font-size: 2rem;
+      line-height: 1.1;
+      font-weight: 700;
+      color: #000;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .next-up-meta {
+      font-size: 0.85rem;
+      color: rgba(0,0,0,0.55);
+      margin-top: 4px;
+    }
+    .next-up-countdown {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      min-width: 56px;
+      text-align: center;
+    }
+    .next-up-count-top {
+      font-family: var(--font-serif);
+      font-size: 3rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #000;
+    }
+    .next-up-count-bottom {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: rgba(0,0,0,0.5);
+      margin-top: 2px;
+    }
+    .next-up-rest {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .next-up-secondary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .next-up-secondary-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .next-up-secondary-title {
+      flex: 1;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: rgba(0,0,0,0.65);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .next-up-secondary-time {
+      font-size: 0.75rem;
+      color: rgba(0,0,0,0.45);
+      flex-shrink: 0;
+    }
   `;
 
   constructor() {
@@ -659,12 +755,14 @@ export class HomeToday extends LitElement {
     this._loadTodos();
     this._subscribeTodos();
     this._loadQuote();
+    this._eventsTimer = setInterval(() => this._loadEvents(), 5 * 60 * 1000);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     clearInterval(this._clockTimer);
     clearInterval(this._weatherTimer);
+    clearInterval(this._eventsTimer);
     this._todosChannel?.unsubscribe();
   }
 
@@ -856,6 +954,72 @@ export class HomeToday extends LitElement {
     } catch (e) {
       this._eventsErr = e.message;
     }
+  }
+
+  // ── Next Up ────────────────────────────────────────────────────────────────
+  _getNextUpEvents() {
+    const now = Date.now();
+    const threeHours = 3 * 60 * 60 * 1000;
+    return this._events
+      .filter(ev => {
+        if (!ev.start?.dateTime) return false;
+        const start = new Date(ev.start.dateTime).getTime();
+        const end = ev.end?.dateTime ? new Date(ev.end.dateTime).getTime() : start;
+        return now < end && (start - now) <= threeHours;
+      })
+      .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime));
+  }
+
+  _countdownDisplay(startMs) {
+    const now = Date.now();
+    if (now >= startMs) return { top: 'NOW', bottom: '' };
+    const diffMin = Math.ceil((startMs - now) / 60000);
+    if (diffMin >= 60) {
+      const h = Math.floor(diffMin / 60);
+      const m = diffMin % 60;
+      return { top: `${h}h`, bottom: m > 0 ? `${m}m` : '' };
+    }
+    return { top: String(diffMin), bottom: 'MIN' };
+  }
+
+  _fmtEventTime(ev) {
+    const s = new Date(ev.start.dateTime);
+    const e = ev.end?.dateTime ? new Date(ev.end.dateTime) : null;
+    const fmt = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return e ? `${fmt(s)} – ${fmt(e)}` : fmt(s);
+  }
+
+  _renderNextUp() {
+    const events = this._getNextUpEvents();
+    if (!events.length) return '';
+    const [hero, ...rest] = events;
+    const { top, bottom } = this._countdownDisplay(new Date(hero.start.dateTime).getTime());
+    return html`
+      <div class="next-up-card">
+        <div class="next-up-label">Next Up</div>
+        <div class="next-up-hero">
+          <div class="next-up-hero-body">
+            <div class="next-up-title">${hero.summary ?? '(no title)'}</div>
+            <div class="next-up-meta">${this._fmtEventTime(hero)}${hero.location ? ` · ${hero.location}` : ''}</div>
+          </div>
+          <div class="next-up-countdown">
+            <div class="next-up-count-top">${top}</div>
+            ${bottom ? html`<div class="next-up-count-bottom">${bottom}</div>` : ''}
+          </div>
+        </div>
+        ${rest.length ? html`
+          <div class="next-up-rest">
+            ${rest.map(ev => html`
+              <div class="next-up-secondary">
+                <div class="next-up-secondary-dot" style="background:${ev._calColor ?? '#6b7280'}"></div>
+                <div class="next-up-secondary-title">${ev.summary ?? '(no title)'}</div>
+                <div class="next-up-secondary-time">${this._fmtEventTime(ev)}</div>
+              </div>
+            `)}
+          </div>
+        ` : ''}
+      </div>
+    `;
   }
 
   // ── Baby ───────────────────────────────────────────────────────────────────
@@ -1069,6 +1233,7 @@ export class HomeToday extends LitElement {
             ${this._renderClock()}
             ${this._renderWeather()}
           </div>
+          ${this._renderNextUp()}
           ${this._renderTodos()}
         </div>
         <div class="right-col">

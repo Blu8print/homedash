@@ -1245,9 +1245,25 @@ export class HomeCalendar extends LitElement {
               <div class="modal-row">
                 <span class="modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
                 <div class="time-range">
-                  <input type="time" .value=${m.startTime} @change=${e => this._modalField('startTime', e.target.value)} />
+                  <input type="time" .value=${m.startTime} @change=${e => {
+                    this._modalField('startTime', e.target.value);
+                    if (this._modal.endTime <= e.target.value && this._modal.endDate === this._modal.date) {
+                      const next = new Date(this._modal.date + 'T00:00:00');
+                      next.setDate(next.getDate() + 1);
+                      this._modalField('endDate', next.toISOString().slice(0, 10));
+                    }
+                  }} />
                   <span class="time-sep">→</span>
-                  <input type="time" .value=${m.endTime} @change=${e => this._modalField('endTime', e.target.value)} />
+                  <input type="time" .value=${m.endTime} @change=${e => {
+                    this._modalField('endTime', e.target.value);
+                    if (e.target.value <= this._modal.startTime && this._modal.endDate === this._modal.date) {
+                      const next = new Date(this._modal.date + 'T00:00:00');
+                      next.setDate(next.getDate() + 1);
+                      this._modalField('endDate', next.toISOString().slice(0, 10));
+                    } else if (e.target.value > this._modal.startTime && this._modal.endDate !== this._modal.date) {
+                      this._modalField('endDate', this._modal.date);
+                    }
+                  }} />
                 </div>
               </div>
             ` : ''}
