@@ -79,14 +79,19 @@ export class HomeBaby extends LitElement {
 
   async _loadBabyInfo() {
     const { weeks, dayOfWeek } = calcBaby();
-    const cacheKey = `baby-info-${weeks}-${dayOfWeek}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached) { this._babyInfo = cached; return; }
+    const today    = new Date().toISOString().slice(0, 10);
+    const cacheKey = `baby-ai-${today}`;
+
+    // Purge stale keys from previous days
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('baby-ai-') && k !== cacheKey)
+      .forEach(k => localStorage.removeItem(k));
+
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) { this._babyInfo = cached; this._scheduleMidnightRefresh(); return; }
 
     this._babyLoading = true;
     try {
-      console.log('[baby] key present:', !!OPENROUTER_KEY, '| starts:', OPENROUTER_KEY?.slice(0, 12));
-      console.log('[baby] fetching week info from OpenRouter…');
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${OPENROUTER_KEY}`, 'Content-Type': 'application/json' },
@@ -96,24 +101,28 @@ export class HomeBaby extends LitElement {
           messages: [{ role: 'user', content: `My wife is ${weeks} weeks and ${dayOfWeek} days pregnant with a girl. Write 3 short paragraphs (no headings, no bullet points) covering: (1) how big she is and what she looks like, (2) what she can perceive — senses, movement, sounds, (3) what's happening developmentally this week. Warm, personal tone. Be concise — max 120 words total.` }],
         }),
       });
-      console.log('[baby] response status:', res.status);
       if (res.ok) {
         const json = await res.json();
         const text = json.choices?.[0]?.message?.content?.trim() ?? null;
-        console.log('[baby] text received:', text?.slice(0, 60));
         if (text) {
           this._babyInfo = text;
-          sessionStorage.setItem(cacheKey, text);
+          localStorage.setItem(cacheKey, text);
+          this._scheduleMidnightRefresh();
         }
-      } else {
-        const err = await res.text();
-        console.error('[baby] API error:', res.status, err);
       }
     } catch (e) {
       console.error('[baby] fetch failed:', e);
     } finally {
       this._babyLoading = false;
     }
+  }
+
+  _scheduleMidnightRefresh() {
+    const now      = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    clearTimeout(this._midnightTimer);
+    this._midnightTimer = setTimeout(() => this._loadBabyInfo(), midnight - now);
   }
 
   static styles = css`

@@ -8,12 +8,11 @@ const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const WEATHER_KEY    = import.meta.env.VITE_WEATHER_API_KEY;
 const OPENROUTER_KEY = import.meta.env.VITE_OpenRouter_Key;
 
-// ─── Chore add modal ─────────────────────────────────────────────────────────
-const EMOJI_OPTIONS = [
-  '📝','🧺','🛒','💊','♻️','🔧','🚗','🪴','🍽️','🐕',
-  '🧹','🧴','📦','🛁','🪟','💡','🔑','🧊','🌿','📅',
-  '🏋️','📞','✉️','🎁','🍕','☕','🧽','🪣','🛏️','🚿',
-  '🐇','🌾','🔨','🪜','🪚','🍳','🥘','🪞','🪠','🫧',
+// ─── Todo lanes ──────────────────────────────────────────────────────────────
+const TODO_PEOPLE = [
+  { key: 'mariaelena', name: 'Mariaelena', initial: 'M', defaultColor: '#EB337F' },
+  { key: 'sebastiaan', name: 'Sebastiaan', initial: 'S', defaultColor: '#3A7CF8' },
+  { key: 'anyone',     name: 'Anyone',     initial: '★', defaultColor: '#1C1E22' },
 ];
 
 // ─── Weather ──────────────────────────────────────────────────────────────────
@@ -122,13 +121,10 @@ export class HomeToday extends LitElement {
     _events:        { state: true },
     _eventsErr:     { state: true },
     _authed:        { state: true },
-    _chores:        { state: true },
-    _addModal:      { state: true },
-    _addEmoji:      { state: true },
-    _addStars:      { state: true },
-    _addRecurrence: { state: true },
-    _addName:       { state: true },
-    _quote:         { state: true },
+    _todos:      { state: true },
+    _dismissing: { state: true },
+    _todoColors: { state: true },
+    _quote:      { state: true },
     _narrative:     { state: true },
   };
 
@@ -477,213 +473,94 @@ export class HomeToday extends LitElement {
     }
     .auth-btn:hover { opacity: 0.8; }
 
-    /* ── Chores ── */
-    .chore-list {
+    /* ── Todos panel ── */
+    .todos-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .todo-lane {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-    .chore-item {
+    .todo-lane-header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+    .todo-lane-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+    }
+    .todo-lane-name {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       padding: 8px 10px;
       border-radius: 10px;
       background: var(--color-card-alt);
       cursor: pointer;
-      transition: opacity 0.15s;
+      transition: opacity 0.2s;
+      flex-shrink: 0;
     }
-    .chore-item:hover { opacity: 0.75; }
-    .chore-item.done {
-      opacity: 0.45;
+    .todo-item:hover { opacity: 0.75; }
+    .todo-item.dismissing {
+      opacity: 0.3;
+      pointer-events: none;
     }
-    .chore-icon {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      background: rgba(28,30,34,0.06);
+    .todo-emoji {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
+      font-size: 0.95rem;
       flex-shrink: 0;
     }
-    .chore-name {
+    .todo-name {
       flex: 1;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--color-text);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .chore-item.done .chore-name {
+    .todo-item.dismissing .todo-name {
       text-decoration: line-through;
       color: var(--color-text-muted);
     }
-    .chore-stars {
-      font-size: 0.65rem;
-      color: #e11d48;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    /* ── Add chore input ── */
-    .chore-add-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--color-border);
-    }
-    .chore-add-input {
-      flex: 1;
-      border: none;
-      background: var(--color-card-alt);
-      border-radius: 8px;
-      padding: 7px 10px;
-      font-family: var(--font-sans);
-      font-size: 0.82rem;
-      color: var(--color-text);
-      outline: none;
-    }
-    .chore-add-input::placeholder { color: var(--color-text-muted); }
-    .chore-add-input:focus { box-shadow: 0 0 0 2px rgba(59,130,246,0.25); }
-    .chore-add-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      border: none;
-      background: var(--color-text);
-      color: #fff;
-      font-size: 1.1rem;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: opacity 0.15s;
-    }
-    .chore-add-btn:hover { opacity: 0.75; }
-
-    /* ── Modal ── */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-    .modal {
-      background: var(--color-card);
-      border-radius: 20px;
-      padding: 24px;
-      width: 360px;
-      max-width: 90vw;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-    }
-    .modal-title {
-      font-family: var(--font-serif);
-      font-size: 1.15rem;
-      color: var(--color-text);
-      margin: 0;
-    }
-    .modal-name-input {
-      width: 100%;
-      border: 1.5px solid var(--color-border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-family: var(--font-sans);
-      font-size: 0.9rem;
-      color: var(--color-text);
-      background: var(--color-card);
-      outline: none;
-      box-sizing: border-box;
-    }
-    .modal-name-input:focus { border-color: #3b82f6; }
-    .modal-label {
+    .todo-stars {
       font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-      margin-bottom: 8px;
-    }
-    .emoji-grid {
-      display: grid;
-      grid-template-columns: repeat(10, 1fr);
-      gap: 4px;
-    }
-    .emoji-btn {
-      background: var(--color-card-alt);
-      border: 2px solid transparent;
-      border-radius: 8px;
-      padding: 4px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: border-color 0.1s, background 0.1s;
-      line-height: 1;
-      text-align: center;
-    }
-    .emoji-btn.selected {
-      border-color: #3b82f6;
-      background: #dbeafe;
-    }
-    .star-row { display: flex; gap: 10px; }
-    .star-btn {
-      font-size: 1.5rem;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      line-height: 1;
-      filter: grayscale(1) opacity(0.25);
       color: #e11d48;
-      transition: filter 0.1s, transform 0.1s;
-    }
-    .star-btn.active { filter: none; transform: scale(1.1); }
-    .recur-row { display: flex; gap: 6px; flex-wrap: wrap; }
-    .recur-btn {
-      padding: 5px 11px;
-      border-radius: 8px;
-      border: 1.5px solid var(--color-border);
-      background: var(--color-card-alt);
-      font-family: var(--font-sans);
-      font-size: 0.72rem;
       font-weight: 700;
+      flex-shrink: 0;
+    }
+    .todo-empty {
+      font-size: 0.75rem;
       color: var(--color-text-muted);
-      cursor: pointer;
-      transition: border-color 0.1s, background 0.1s, color 0.1s;
+      padding: 4px 0;
     }
-    .recur-btn.selected { border-color: #6366f1; background: #eef2ff; color: #4338ca; }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
-    .btn-cancel {
-      padding: 8px 16px;
-      border-radius: 10px;
-      border: 1.5px solid var(--color-border);
-      background: none;
-      font-family: var(--font-sans);
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: var(--color-text-muted);
-      cursor: pointer;
-    }
-    .btn-save {
-      padding: 8px 18px;
-      border-radius: 10px;
-      border: none;
-      background: #111827;
-      color: white;
-      font-family: var(--font-sans);
-      font-size: 0.78rem;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .btn-save:hover { background: #374151; }
 
     /* ── Baby ── */
     .baby-main {
@@ -761,14 +638,15 @@ export class HomeToday extends LitElement {
     this._events     = [];
     this._eventsErr  = null;
     this._authed     = false;
-    this._chores        = [];
-    this._addModal      = false;
-    this._addName       = '';
-    this._addEmoji      = '📝';
-    this._addStars      = 0;
-    this._addRecurrence = 'none';
-    this._quote         = null;
-    this._narrative     = null;
+    this._todos      = { mariaelena: [], sebastiaan: [], anyone: [] };
+    this._dismissing = new Set();
+    this._todoColors = {
+      mariaelena: localStorage.getItem('lane-color-mariaelena') || '#EB337F',
+      sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#3A7CF8',
+      anyone:      '#1C1E22',
+    };
+    this._quote      = null;
+    this._narrative  = null;
   }
 
   connectedCallback() {
@@ -778,8 +656,8 @@ export class HomeToday extends LitElement {
     this._loadWeather();
     this._loadTrash();
     this._initCalendar();
-    this._loadChores();
-    this._subscribeChores();
+    this._loadTodos();
+    this._subscribeTodos();
     this._loadQuote();
   }
 
@@ -787,7 +665,7 @@ export class HomeToday extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._clockTimer);
     clearInterval(this._weatherTimer);
-    this._choresChannel?.unsubscribe();
+    this._todosChannel?.unsubscribe();
   }
 
   // ── Clock ──────────────────────────────────────────────────────────────────
@@ -868,6 +746,15 @@ export class HomeToday extends LitElement {
   }
 
   async _loadNarrative(condText, temp, hi, lo) {
+    const CACHE_KEY = 'weather-narrative-cache';
+    const TTL = 60 * 60 * 1000; // 1 hour
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (cached && Date.now() - cached.ts < TTL) {
+        this._narrative = cached.text;
+        return;
+      }
+    } catch (_) {}
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -880,7 +767,11 @@ export class HomeToday extends LitElement {
       });
       if (!res.ok) return;
       const json = await res.json();
-      this._narrative = json.choices?.[0]?.message?.content?.trim() ?? null;
+      const text = json.choices?.[0]?.message?.content?.trim() ?? null;
+      if (text) {
+        this._narrative = text;
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), text }));
+      }
     } catch (_) {}
   }
 
@@ -897,15 +788,39 @@ export class HomeToday extends LitElement {
     } catch (_) {}
   }
 
-  // ── Chores ─────────────────────────────────────────────────────────────────
-  async _loadChores() {
+  // ── Todos ──────────────────────────────────────────────────────────────────
+  async _loadTodos() {
     const { data } = await supabase
       .from('todos')
-      .select('id, name, emoji, done, stars')
-      .eq('person', 'anyone')
+      .select('id, name, emoji, done, stars, person')
+      .in('person', ['mariaelena', 'sebastiaan', 'anyone'])
+      .eq('done', false)
       .order('sort_order')
       .order('created_at');
-    this._chores = data ?? [];
+    const groups = { mariaelena: [], sebastiaan: [], anyone: [] };
+    for (const t of data ?? []) {
+      if (groups[t.person]) groups[t.person].push(t);
+    }
+    this._todos = groups;
+  }
+
+  _subscribeTodos() {
+    this._todosChannel = supabase
+      .channel('today-todos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => this._loadTodos())
+      .subscribe();
+  }
+
+  async _tickTodo(task, personKey) {
+    this._dismissing = new Set([...this._dismissing, task.id]);
+    await supabase.from('todos').update({ done: true, completed_at: new Date().toISOString() }).eq('id', task.id);
+    setTimeout(() => {
+      this._dismissing = new Set([...this._dismissing].filter(id => id !== task.id));
+      this._todos = {
+        ...this._todos,
+        [personKey]: this._todos[personKey].filter(t => t.id !== task.id),
+      };
+    }, 1500);
   }
 
   async _loadQuote() {
@@ -915,39 +830,6 @@ export class HomeToday extends LitElement {
     const start = new Date(now.getFullYear(), 0, 0);
     const dayOfYear = Math.floor((now - start) / 86400000);
     this._quote = data[dayOfYear % data.length];
-  }
-
-  _subscribeChores() {
-    this._choresChannel = supabase
-      .channel('today-chores')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => this._loadChores())
-      .subscribe();
-  }
-
-  async _toggleChore(task) {
-    const done = !task.done;
-    const completed_at = done ? new Date().toISOString() : null;
-    this._chores = this._chores.map(t => t.id === task.id ? { ...t, done } : t);
-    await supabase.from('todos').update({ done, completed_at }).eq('id', task.id);
-  }
-
-  _openAddModal(name) {
-    if (!name.trim()) return;
-    this._addName  = name.trim();
-    this._addEmoji = '📝';
-    this._addStars = 0;
-    this._addRecurrence = 'none';
-    this._addModal = true;
-  }
-
-  async _confirmAdd() {
-    this._addModal = false;
-    const maxOrder = this._chores.reduce((m, t) => Math.max(m, t.sort_order ?? 0), -1);
-    const { data } = await supabase
-      .from('todos')
-      .insert({ person: 'anyone', name: this._addName, emoji: this._addEmoji, stars: this._addStars || null, recurrence: this._addRecurrence, sort_order: maxOrder + 1 })
-      .select().single();
-    if (data) this._chores = [...this._chores, data];
   }
 
   // ── Calendar ───────────────────────────────────────────────────────────────
@@ -1149,88 +1031,32 @@ export class HomeToday extends LitElement {
     `;
   }
 
-  _renderAddModal() {
-    if (!this._addModal) return '';
-    const opts = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
+  _renderTodos() {
     return html`
-      <div class="modal-backdrop" @click=${e => e.target === e.currentTarget && (this._addModal = false)}>
-        <div class="modal">
-          <p class="modal-title">New task for Anyone</p>
-          <input class="modal-name-input"
-            .value=${this._addName}
-            @input=${e => { this._addName = e.target.value; }}
-            @keydown=${e => e.key === 'Enter' && this._confirmAdd()}
-            autofocus
-          />
-          <div>
-            <div class="modal-label">Icon</div>
-            <div class="emoji-grid">
-              ${EMOJI_OPTIONS.map(em => html`
-                <button class="emoji-btn ${this._addEmoji === em ? 'selected' : ''}"
-                  @click=${() => { this._addEmoji = em; }}>${em}</button>
-              `)}
+      <div class="todos-panel">
+        ${TODO_PEOPLE.map(person => {
+          const color = this._todoColors[person.key] ?? person.defaultColor;
+          const tasks = this._todos[person.key] ?? [];
+          return html`
+            <div class="card todo-lane">
+              <div class="todo-lane-header">
+                <div class="todo-lane-avatar" style="background:${color}">${person.initial}</div>
+                <div class="todo-lane-name">${person.name}</div>
+              </div>
+              ${!tasks.length
+                ? html`<div class="todo-empty">All clear ✓</div>`
+                : tasks.map(task => html`
+                  <div class="todo-item ${this._dismissing.has(task.id) ? 'dismissing' : ''}"
+                       @click=${() => this._tickTodo(task, person.key)}>
+                    <div class="todo-emoji" style="background:${color}18">${task.emoji ?? '📝'}</div>
+                    <div class="todo-name">${task.name}</div>
+                    ${task.stars ? html`<div class="todo-stars">${'♥'.repeat(task.stars)}</div>` : ''}
+                  </div>
+                `)
+              }
             </div>
-          </div>
-          <div>
-            <div class="modal-label">Hearts</div>
-            <div class="star-row">
-              ${[1,2,3].map(n => html`
-                <button class="star-btn ${this._addStars >= n ? 'active' : ''}"
-                  @click=${() => { this._addStars = this._addStars === n ? 0 : n; }}>♥</button>
-              `)}
-            </div>
-          </div>
-          <div>
-            <div class="modal-label">Repeats</div>
-            <div class="recur-row">
-              ${opts.map(o => html`
-                <button class="recur-btn ${this._addRecurrence === o ? 'selected' : ''}"
-                  @click=${() => { this._addRecurrence = o; }}>${o[0].toUpperCase() + o.slice(1)}</button>
-              `)}
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="btn-cancel" @click=${() => { this._addModal = false; }}>Cancel</button>
-            <button class="btn-save" @click=${() => this._confirmAdd()}>Add task</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  _renderChores() {
-    const items = this._chores.filter(t => !t.done);
-    return html`
-      ${this._renderAddModal()}
-      <div class="card">
-        <div class="card-label">Up for grabs · Anyone</div>
-        ${!items.length
-          ? html`<div class="muted">No open tasks</div>`
-          : html`
-            <div class="chore-list">
-              ${items.map(task => html`
-                <div class="chore-item" @click=${() => this._toggleChore(task)}>
-                  <div class="chore-icon">${task.emoji ?? '📝'}</div>
-                  <div class="chore-name">${task.name}</div>
-                  ${task.stars ? html`<div class="chore-stars">${'♥'.repeat(task.stars)}</div>` : ''}
-                </div>
-              `)}
-            </div>
-          `
-        }
-        <div class="chore-add-row">
-          <input
-            class="chore-add-input"
-            placeholder="Add a task..."
-            @keydown=${e => { if (e.key === 'Enter') { this._openAddModal(e.target.value); e.target.value = ''; } }}
-          />
-          <button class="chore-add-btn"
-            @click=${e => {
-              const input = e.target.closest('.chore-add-row').querySelector('.chore-add-input');
-              this._openAddModal(input.value);
-              input.value = '';
-            }}>+</button>
-        </div>
+          `;
+        })}
       </div>
     `;
   }
@@ -1243,12 +1069,12 @@ export class HomeToday extends LitElement {
             ${this._renderClock()}
             ${this._renderWeather()}
           </div>
-          ${this._renderEvents()}
+          ${this._renderTodos()}
         </div>
         <div class="right-col">
           ${this._renderBaby()}
           ${this._renderTrash()}
-          ${this._renderChores()}
+          ${this._renderEvents()}
         </div>
       </div>
     `;
