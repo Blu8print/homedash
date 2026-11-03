@@ -23,8 +23,9 @@ export class HomeSidebar extends LitElement {
       width: var(--sidebar-width, 80px);
       background: var(--color-sidebar, #1a1a1a);
       color: var(--color-sidebar-text, #fff);
-      height: 100vh;
+      height: 100%;
       flex-shrink: 0;
+      overflow: hidden;
     }
 
     .nav {
@@ -33,6 +34,13 @@ export class HomeSidebar extends LitElement {
       gap: 4px;
       padding: 16px 8px;
       flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .nav::-webkit-scrollbar {
+      display: none;
     }
 
     a {
