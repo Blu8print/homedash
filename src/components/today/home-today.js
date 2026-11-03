@@ -215,15 +215,15 @@ export class HomeToday extends LitElement {
     }
     .clock-quote-text {
       font-family: var(--font-serif);
-      font-size: 0.82rem;
+      font-size: 1rem;
       font-style: italic;
       color: var(--color-text);
-      line-height: 1.5;
+      line-height: 1.55;
     }
     .clock-quote-source {
-      font-size: 0.65rem;
+      font-size: 0.78rem;
       color: var(--color-text-muted);
-      margin-top: 4px;
+      margin-top: 5px;
       font-weight: 600;
       letter-spacing: 0.04em;
     }
@@ -371,15 +371,15 @@ export class HomeToday extends LitElement {
       text-transform: capitalize;
     }
     .trash-pill {
-      font-size: 0.72rem;
       font-weight: 700;
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 999px;
       white-space: nowrap;
-      align-self: flex-start;
+      align-self: center;
+      font-size: 0.72rem;
     }
-    .trash-today    { background: #fef3c7; color: #92400e; }
-    .trash-tomorrow { background: #dbeafe; color: #1e40af; }
+    .trash-today    { background: #fef3c7; color: #92400e; font-size: 1.3rem; padding: 6px 16px; }
+    .trash-tomorrow { background: #dbeafe; color: #1e40af; font-size: 1.3rem; padding: 6px 16px; }
     .trash-later    { background: var(--color-card-alt); color: var(--color-text-muted); }
     .trash-upcoming-row {
       display: flex;
@@ -796,10 +796,8 @@ export class HomeToday extends LitElement {
     const h24 = now.getHours();
     const m   = now.getMinutes();
     const s   = now.getSeconds();
-    const h12 = h24 % 12 || 12;
-    const ampm = h24 < 12 ? 'AM' : 'PM';
     const date = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-    return { display: `${h12}:${pad(m)}`, ampm, date };
+    return { display: `${pad(h24)}:${pad(m)}`, ampm: '', date };
   }
 
   _tick() { this._time = this._nowTime(); }
@@ -954,15 +952,6 @@ export class HomeToday extends LitElement {
 
   // ── Calendar ───────────────────────────────────────────────────────────────
   async _initCalendar() {
-    await loadGoogleAuth(GOOGLE_CLIENT_ID);
-    if (isAuthenticated()) {
-      this._authed = true;
-      await this._loadEvents();
-    }
-  }
-
-  async _connectCalendar() {
-    await requestToken();
     this._authed = true;
     await this._loadEvents();
   }
@@ -1023,7 +1012,7 @@ export class HomeToday extends LitElement {
         <div class="card-label">Now</div>
         <div class="clock-body">
           <div>
-            <div class="clock-time">${display}<span class="clock-ampm">${ampm}</span></div>
+            <div class="clock-time">${display}</div>
             <div class="clock-date">${date}</div>
           </div>
           <div class="clock-moon">${moon}</div>
@@ -1093,9 +1082,9 @@ export class HomeToday extends LitElement {
     const [next, ...rest] = this._trash;
     const meta  = WASTE_META[next.waste_type] ?? { label: next.waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
     const days  = daysUntil(next.date);
-    const pill  = days === 0 ? ['Today',    'trash-pill trash-today']
-                : days === 1 ? ['Tomorrow', 'trash-pill trash-tomorrow']
-                :              [`${days}d`, 'trash-pill trash-later'];
+    const pill  = days === 0 ? ['Today',        'trash-pill trash-today']
+                : days === 1 ? ['Tomorrow',     'trash-pill trash-tomorrow']
+                :              [`in ${days}d`,  'trash-pill trash-later'];
     return html`
       <div class="card">
         <div class="card-label">Trash</div>
@@ -1129,8 +1118,7 @@ export class HomeToday extends LitElement {
         <div class="card-label">Calendar</div>
         <div class="auth-prompt">
           <div class="auth-icon">📅</div>
-          <div class="auth-label">Connect Google Calendar to<br>see upcoming events</div>
-          <button class="auth-btn" @click=${() => this._connectCalendar()}>Connect</button>
+          <div class="auth-label">Loading calendar…</div>
         </div>
       </div>
     `;

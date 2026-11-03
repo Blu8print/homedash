@@ -188,7 +188,7 @@ export class HomeBudget extends LitElement {
     try {
       const headers = {};
       if (HEADER_NAME && HEADER_VALUE) headers[HEADER_NAME] = HEADER_VALUE;
-      const res = await fetch(WEBHOOK_URL, { headers });
+      const res = await fetch(`${WEBHOOK_URL}?action=get_budget`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       this._items = Array.isArray(json) ? json : [json];

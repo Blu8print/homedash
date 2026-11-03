@@ -180,3 +180,74 @@ npm run dev     # http://localhost:3000
 npm run build   # dist/
 npm run preview # preview production build
 ```
+
+## n8n Webhook API
+
+All data flows through a single n8n webhook. Auth via header `homedash: <value>`.
+
+- **Production**: `https://automation.whiterabbit.earth/webhook/...`
+- **Lib**: `src/lib/google-calendar.js` — all calls are POST with `Content-Type: application/json`
+
+### GET Calendar events
+
+```json
+{ "action": "get_calendar", "calendarId": "primary", "start": "<ISO>", "end": "<ISO>" }
+```
+Returns array of Google Calendar event objects.
+
+### CREATE event
+
+```json
+{
+  "action": "create_event",
+  "calendarId": "primary",
+  "event": {
+    "summary": "Event title",
+    "description": "...",
+    "location": "...",
+    "colorId": "7",
+    "allDay": "no",
+    "start": { "dateTime": "2026-11-04T18:00:00+01:00" },
+    "end":   { "dateTime": "2026-11-04T19:00:00+01:00" },
+    "rrule": "FREQ=DAILY;COUNT=2"
+  }
+}
+```
+
+**n8n node field mappings (Google Calendar → Create):**
+
+| n8n field         | Expression                              | Notes |
+|-------------------|-----------------------------------------|-------|
+| Title             | `{{ $json.body.event.summary }}`        | |
+| Start             | `{{ $json.body.event.start.dateTime }}` | |
+| End               | `{{ $json.body.event.end.dateTime }}`   | |
+| All Day           | `{{ $json.body.event.allDay }}`         | `"yes"` or `"no"` (lowercase string) |
+| Color Name or ID  | `{{ $json.body.event.colorId }}`        | Numeric string `"1"`–`"11"`, maps to Google color |
+| Description       | `{{ $json.body.event.description }}`    | |
+| Location          | `{{ $json.body.event.location }}`       | |
+| RRULE             | `{{ $json.body.event.rrule }}`          | Rule **without** `RRULE:` prefix, e.g. `FREQ=WEEKLY;COUNT=4`. Omit field if no recurrence. |
+
+**allDay events**: use `"yes"` and send `start.date` / `end.date` (date-only strings) instead of `dateTime`.
+
+**Recurrence**: send `rrule` as a plain rule string. n8n adds the `RRULE:` prefix — do not include it. Leave empty string or omit for non-repeating events.
+
+### UPDATE event
+
+```json
+{
+  "action": "update_event",
+  "calendarId": "primary",
+  "eventId": "<id>",
+  "event": { "summary": "...", ... }
+}
+```
+
+### DELETE event
+
+```json
+{
+  "action": "delete_event",
+  "calendarId": "primary",
+  "eventId": "<id>"
+}
+```

@@ -752,22 +752,16 @@ export class HomeCalendar extends LitElement {
     this._modal       = null;
     this._modalSaving = false;
     this._modalError  = null;
+    this._cacheStart  = null;
+    this._cacheEnd    = null;
   }
 
   async connectedCallback() {
     super.connectedCallback();
-    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_')) return;
-    try {
-      await loadGoogleAuth(GOOGLE_CLIENT_ID);
-      if (isAuthenticated()) {
-        this._authed = true;
-        await Promise.all([this._loadEvents(), this._fetchCalColors()]);
-      }
-    } catch (e) { this._error = e.message; }
-    this._pollTimer = setInterval(() => {
-      if (this._authed) this._loadEvents();
-    }, 5 * 60_000);
-    this._syncHandler = () => { if (this._authed) this._loadEvents(); };
+    this._authed = true;
+    this._loadEvents();
+    this._pollTimer = setInterval(() => this._loadEvents(), 5 * 60_000);
+    this._syncHandler = () => this._loadEvents();
     window.addEventListener('calendar-sync', this._syncHandler);
   }
 
@@ -800,8 +794,11 @@ export class HomeCalendar extends LitElement {
   async _loadEvents() {
     this._loading = true;
     this._error   = null;
-    const start = this._gridStart;
-    const end   = this._gridEnd;
+    const today = new Date(new Date().setHours(0, 0, 0, 0));
+    const start = new Date(Math.min(addDays(today, -7), this._gridStart));
+    const end   = new Date(Math.max(addDays(today, 61), this._gridEnd));
+    this._cacheStart = start;
+    this._cacheEnd   = end;
     try {
       const results = await Promise.all(
         CALENDARS.map(cal =>
@@ -847,6 +844,11 @@ export class HomeCalendar extends LitElement {
     return Array.from({ length: this._numDays }, (_, i) => addDays(this._startDate, i));
   }
 
+  _needsFetch() {
+    if (!this._cacheStart || !this._cacheEnd) return true;
+    return this._gridStart < this._cacheStart || this._gridEnd > this._cacheEnd;
+  }
+
   _navigate(dir) {
     if (this._view === 'month') {
       const d = new Date(this._startDate);
@@ -856,7 +858,7 @@ export class HomeCalendar extends LitElement {
     } else {
       this._startDate = addDays(this._startDate, dir * this._numDays);
     }
-    if (this._authed) this._loadEvents();
+    if (this._needsFetch()) this._loadEvents();
   }
 
   _onTouchStart(e) {
@@ -884,7 +886,7 @@ export class HomeCalendar extends LitElement {
     } else {
       this._startDate = new Date(now.setHours(0, 0, 0, 0));
     }
-    if (this._authed) this._loadEvents();
+    if (this._needsFetch()) this._loadEvents();
   }
 
   _setView(view) {
@@ -900,7 +902,7 @@ export class HomeCalendar extends LitElement {
     } else {
       this._startDate = new Date(now.setHours(0, 0, 0, 0));
     }
-    if (this._authed) this._loadEvents();
+    if (this._needsFetch()) this._loadEvents();
   }
 
   updated(changedProps) {
@@ -1064,10 +1066,8 @@ export class HomeCalendar extends LitElement {
         ...(description && { description }),
         ...(location    && { location }),
         ...(colorId     && { colorId }),
-        reminders: alarm === 'none'
-          ? { useDefault: false, overrides: [] }
-          : { useDefault: false, overrides: [{ method: 'popup', minutes: Number(alarm) }] },
-        ...(repeat !== 'none' && { recurrence: [`RRULE:FREQ=${repeat.toUpperCase()}`] }),
+        allDay: allDay ? 'yes' : 'no',
+        ...(repeat !== 'none' && { rrule: `FREQ=${repeat.toUpperCase()}` }),
       };
       if (allDay) {
         body.start = { date };
@@ -1095,19 +1095,8 @@ export class HomeCalendar extends LitElement {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   render() {
-    const notConfigured = !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('YOUR_');
     let mainContent;
-    if (notConfigured) {
-      mainContent = html`<div class="center-state">
-        <p>Add your Google OAuth Client ID to <code>src/config/calendars.js</code> to connect.</p>
-      </div>`;
-    } else if (!this._authed) {
-      mainContent = html`<div class="center-state">
-        <p>Connect your Google Calendar to see your events here.</p>
-        ${this._error ? html`<p style="color:#ef4444;font-size:12px">${this._error}</p>` : ''}
-        <button class="connect-btn" @click=${this._connect}>Connect Google Calendar</button>
-      </div>`;
-    } else if (this._view === 'month') {
+    if (this._view === 'month') {
       mainContent = this._renderMonthView();
     } else if (this._view === 'today' || this._view === '3day') {
       mainContent = this._renderTimeGrid();
@@ -1581,7 +1570,7 @@ export class HomeCalendar extends LitElement {
   _jumpToDay(date) {
     this._view      = 'today';
     this._startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    if (this._authed) this._loadEvents();
+    if (this._needsFetch()) this._loadEvents();
     this._doScrollToNow();
   }
 
