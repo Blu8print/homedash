@@ -1,5 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import './home-sidebar.js';
+import './home-settings.js';
+import { applyStoredScale } from './home-settings.js';
 import './today/home-today.js';
 import './calendar/home-calendar.js';
 import './chores/home-todo.js';
@@ -7,9 +9,12 @@ import './shopping/home-shopping.js';
 import './budget/home-budget.js';
 import './baby/home-baby.js';
 
+applyStoredScale();
+
 export class HomeApp extends LitElement {
   static properties = {
-    activeSection: { type: String },
+    activeSection:   { type: String },
+    _settingsOpen:   { state: true },
   };
 
   static styles = css`
@@ -31,6 +36,7 @@ export class HomeApp extends LitElement {
   constructor() {
     super();
     this.activeSection = location.hash.slice(1) || 'today';
+    this._settingsOpen = false;
     window.addEventListener('hashchange', () => {
       this.activeSection = location.hash.slice(1) || 'today';
     });
@@ -38,7 +44,8 @@ export class HomeApp extends LitElement {
 
   render() {
     return html`
-      <home-sidebar .active=${this.activeSection}></home-sidebar>
+      <home-sidebar .active=${this.activeSection} @open-settings=${() => this._settingsOpen = true}></home-sidebar>
+      <home-settings ?open=${this._settingsOpen} @settings-close=${() => this._settingsOpen = false}></home-settings>
       <main>
         ${this.activeSection === 'today'    ? html`<home-today></home-today>`       : ''}
         ${this.activeSection === 'calendar' ? html`<home-calendar></home-calendar>` : ''}

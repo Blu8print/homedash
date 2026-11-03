@@ -131,6 +131,18 @@ export class HomeSidebar extends LitElement {
       letter-spacing: 0.05em;
       color: rgba(255,255,255,0.45);
       padding: 8px 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      text-align: center;
+      width: 100%;
+      border: none;
+      background: none;
+    }
+
+    .clock:hover {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.8);
     }
   `;
 
@@ -148,6 +160,10 @@ export class HomeSidebar extends LitElement {
   _tick() {
     const now = new Date();
     this._time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  }
+
+  _openSettings() {
+    this.dispatchEvent(new CustomEvent('open-settings', { bubbles: true, composed: true }));
   }
 
   _sync() {
@@ -176,7 +192,7 @@ export class HomeSidebar extends LitElement {
           <span class="icon">↻</span>
           Sync
         </button>
-        <div class="clock">${this._time}</div>
+        <button class="clock" @click=${this._openSettings} title="Settings">${this._time}</button>
       </div>
     `;
   }
