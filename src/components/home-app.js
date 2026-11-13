@@ -8,6 +8,7 @@ import './chores/home-todo.js';
 import './shopping/home-shopping.js';
 import './budget/home-budget.js';
 import './baby/home-baby.js';
+import './screensaver/home-screensaver.js';
 
 applyStoredScale();
 
@@ -15,6 +16,7 @@ export class HomeApp extends LitElement {
   static properties = {
     activeSection:   { type: String },
     _settingsOpen:   { state: true },
+    _screensaver:    { state: true },
   };
 
   static styles = css`
@@ -40,6 +42,7 @@ export class HomeApp extends LitElement {
     super();
     this.activeSection = location.hash.slice(1) || 'today';
     this._settingsOpen = false;
+    this._screensaver  = false;
     window.addEventListener('hashchange', () => {
       this.activeSection = location.hash.slice(1) || 'today';
     });
@@ -47,11 +50,20 @@ export class HomeApp extends LitElement {
     this._resetIdle = () => {
       clearTimeout(this._idleTimeout);
       this._idleTimeout = setTimeout(() => {
-        location.hash = 'today';
-      }, 3 * 60 * 1000);
+        this._screensaver = true;
+      }, 2 * 60 * 1000);
+    };
+    this._dismissScreensaver = () => {
+      if (!this._screensaver) return;
+      this._screensaver = false;
+      location.hash = 'today';
+      this._resetIdle();
     };
     ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(e =>
       window.addEventListener(e, this._resetIdle, { passive: true })
+    );
+    ['mousedown', 'keydown', 'touchstart'].forEach(e =>
+      window.addEventListener(e, this._dismissScreensaver, { passive: true })
     );
     this._resetIdle();
   }
@@ -61,6 +73,9 @@ export class HomeApp extends LitElement {
     clearTimeout(this._idleTimeout);
     ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(e =>
       window.removeEventListener(e, this._resetIdle)
+    );
+    ['mousedown', 'keydown', 'touchstart'].forEach(e =>
+      window.removeEventListener(e, this._dismissScreensaver)
     );
   }
 
@@ -76,6 +91,7 @@ export class HomeApp extends LitElement {
         ${this.activeSection === 'budget'   ? html`<home-budget></home-budget>`     : ''}
         ${this.activeSection === 'baby'     ? html`<home-baby></home-baby>`         : ''}
       </main>
+      ${this._screensaver ? html`<home-screensaver></home-screensaver>` : ''}
     `;
   }
 }
