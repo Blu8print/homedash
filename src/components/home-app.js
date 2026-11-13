@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import './home-sidebar.js';
 import './home-settings.js';
-import { applyStoredScale } from './home-settings.js';
+import { applyStoredScale, getIdleMinutes } from './home-settings.js';
 import './today/home-today.js';
 import './calendar/home-calendar.js';
 import './chores/home-todo.js';
@@ -51,7 +51,7 @@ export class HomeApp extends LitElement {
       clearTimeout(this._idleTimeout);
       this._idleTimeout = setTimeout(() => {
         this._screensaver = true;
-      }, 2 * 60 * 1000);
+      }, getIdleMinutes() * 60 * 1000);
     };
     this._dismissScreensaver = () => {
       if (!this._screensaver) return;

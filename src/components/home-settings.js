@@ -3,11 +3,18 @@ import { LitElement, html, css } from 'lit';
 const SCALE_KEY = 'dashboard-scale';
 const DEFAULT_SCALE = 1.0;
 
+export const IDLE_KEY  = 'screensaver-idle-min';
+export const SLIDE_KEY = 'screensaver-slide-sec';
+export const getIdleMinutes = () => parseInt(localStorage.getItem(IDLE_KEY)  ?? '2',  10);
+export const getSlideSecs   = () => parseInt(localStorage.getItem(SLIDE_KEY) ?? '8', 10);
+
 export class HomeSettings extends LitElement {
   static properties = {
-    open:   { type: Boolean, reflect: true },
-    _scale: { state: true },
-    _info:  { state: true },
+    open:    { type: Boolean, reflect: true },
+    _scale:  { state: true },
+    _idle:   { state: true },
+    _slide:  { state: true },
+    _info:   { state: true },
   };
 
   static styles = css`
@@ -150,6 +157,12 @@ export class HomeSettings extends LitElement {
       border-color: var(--color-text, #1a1a1a);
     }
 
+    .section-sublabel {
+      font-size: 11px;
+      color: var(--color-text-muted, #888);
+      margin-top: 5px;
+    }
+
     /* Info section */
     .info-grid {
       display: grid;
@@ -187,9 +200,11 @@ export class HomeSettings extends LitElement {
 
   constructor() {
     super();
-    this.open = false;
+    this.open   = false;
     this._scale = parseFloat(localStorage.getItem(SCALE_KEY) ?? DEFAULT_SCALE);
-    this._info = this._gatherInfo();
+    this._idle  = getIdleMinutes();
+    this._slide = getSlideSecs();
+    this._info  = this._gatherInfo();
   }
 
   _gatherInfo() {
@@ -231,6 +246,16 @@ export class HomeSettings extends LitElement {
     document.documentElement.style.setProperty('--app-scale', v);
   }
 
+  _onIdleInput(e) {
+    this._idle = parseInt(e.target.value, 10);
+    localStorage.setItem(IDLE_KEY, this._idle);
+  }
+
+  _onSlideInput(e) {
+    this._slide = parseInt(e.target.value, 10);
+    localStorage.setItem(SLIDE_KEY, this._slide);
+  }
+
   _close() {
     this.open = false;
     this.dispatchEvent(new CustomEvent('settings-close', { bubbles: true, composed: true }));
@@ -270,6 +295,35 @@ export class HomeSettings extends LitElement {
               >${Math.round(p * 100)}%</button>
             `)}
           </div>
+        </div>
+
+        <div>
+          <div class="section-label">Screensaver</div>
+          <div class="scale-row">
+            <span class="scale-value" style="font-size:20px;min-width:52px">${this._idle}m</span>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="1"
+              .value=${String(this._idle)}
+              @input=${this._onIdleInput}
+            />
+          </div>
+          <div class="section-sublabel">Idle time before screensaver activates</div>
+
+          <div class="scale-row" style="margin-top:16px">
+            <span class="scale-value" style="font-size:20px;min-width:52px">${this._slide}s</span>
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="5"
+              .value=${String(this._slide)}
+              @input=${this._onSlideInput}
+            />
+          </div>
+          <div class="section-sublabel">Seconds per photo</div>
         </div>
 
         <div>

@@ -1,9 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
 import { supabase } from '../../lib/supabase.js';
+import { getSlideSecs } from '../home-settings.js';
 
 const BUCKET_URL = 'https://unwclrqvrmnaynsoyhqc.supabase.co/storage/v1/object/public/screensaver';
-const SLIDE_MS = 8000;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -196,7 +196,7 @@ export class HomeScreensaver extends LitElement {
     this._idx = 0;
     this._slideTimer = setInterval(() => {
       this._idx = (this._idx + 1) % this._photos.length;
-    }, SLIDE_MS);
+    }, getSlideSecs() * 1000);
   }
 
   _nowTime() {
