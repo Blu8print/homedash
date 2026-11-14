@@ -200,7 +200,7 @@ export class HomeSidebar extends LitElement {
           <span class="icon">↻</span>
           Sync
         </button>
-        <button class="icon-btn" @click=${() => location.reload()} title="Reload page">
+        <button class="icon-btn" @click=${() => { localStorage.removeItem('screensaver_photo_list'); location.reload(); }} title="Reload page">
           <span class="icon">⟳</span>
           Reload
         </button>
