@@ -154,7 +154,6 @@ export class HomeToday extends LitElement {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
-      margin-top: auto;
     }
 
     /* ── Card base ── */
@@ -1242,12 +1241,12 @@ export class HomeToday extends LitElement {
     return html`
       <div class="page-grid">
         <div class="left-col">
-          ${this._renderNextUp()}
-          ${this._renderTodos()}
           <div class="top-row">
             ${this._renderClock()}
             ${this._renderWeather()}
           </div>
+          ${this._renderNextUp()}
+          ${this._renderTodos()}
         </div>
         <div class="right-col">
           ${this._renderBaby()}

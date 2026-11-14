@@ -190,6 +190,7 @@ export class HomeScreensaver extends LitElement {
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
+      margin-top: auto;
     }
 
     .clock-time {
