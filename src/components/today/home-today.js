@@ -690,6 +690,15 @@ export class HomeToday extends LitElement {
       color: rgba(0,0,0,0.5);
       margin-top: 2px;
     }
+    .next-up-count-bottom.large {
+      font-family: var(--font-serif);
+      font-size: 3rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #000;
+      letter-spacing: 0;
+      margin-top: 0;
+    }
     .next-up-rest {
       margin-top: 14px;
       padding-top: 12px;
@@ -951,6 +960,9 @@ export class HomeToday extends LitElement {
         return ta.localeCompare(tb);
       });
       this._events = all.slice(0, 8);
+      try {
+        localStorage.setItem('calendar_events_cache', JSON.stringify({ ts: Date.now(), events: this._events }));
+      } catch {}
     } catch (e) {
       this._eventsErr = e.message;
     }
@@ -972,14 +984,14 @@ export class HomeToday extends LitElement {
 
   _countdownDisplay(startMs) {
     const now = Date.now();
-    if (now >= startMs) return { top: 'NOW', bottom: '' };
+    if (now >= startMs) return { top: 'NOW', bottom: '', largeBottom: false };
     const diffMin = Math.ceil((startMs - now) / 60000);
     if (diffMin >= 60) {
       const h = Math.floor(diffMin / 60);
       const m = diffMin % 60;
-      return { top: `${h}h`, bottom: m > 0 ? `${m}m` : '' };
+      return { top: `${h}H`, bottom: m > 0 ? `${m}M` : '', largeBottom: true };
     }
-    return { top: String(diffMin), bottom: 'MIN' };
+    return { top: String(diffMin), bottom: 'MIN', largeBottom: false };
   }
 
   _fmtEventTime(ev) {
@@ -993,7 +1005,7 @@ export class HomeToday extends LitElement {
     const events = this._getNextUpEvents();
     if (!events.length) return '';
     const [hero, ...rest] = events;
-    const { top, bottom } = this._countdownDisplay(new Date(hero.start.dateTime).getTime());
+    const { top, bottom, largeBottom } = this._countdownDisplay(new Date(hero.start.dateTime).getTime());
     return html`
       <div class="next-up-card">
         <div class="next-up-label">Next Up</div>
@@ -1004,7 +1016,7 @@ export class HomeToday extends LitElement {
           </div>
           <div class="next-up-countdown">
             <div class="next-up-count-top">${top}</div>
-            ${bottom ? html`<div class="next-up-count-bottom">${bottom}</div>` : ''}
+            ${bottom ? html`<div class="next-up-count-bottom ${largeBottom ? 'large' : ''}">${bottom}</div>` : ''}
           </div>
         </div>
         ${rest.length ? html`

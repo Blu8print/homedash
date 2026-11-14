@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase.js';
 import { getSlideSecs } from '../home-settings.js';
 
 const BUCKET_URL = 'https://unwclrqvrmnaynsoyhqc.supabase.co/storage/v1/object/public/screensaver';
+const PHOTO_LIST_CACHE_KEY = 'screensaver_photo_list';
+const PHOTO_LIST_TTL = 24 * 60 * 60 * 1000;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -34,7 +36,10 @@ export class HomeScreensaver extends LitElement {
     _photos: { state: true },
     _idx:    { state: true },
     _time:   { state: true },
+    _cover:  { state: true },
   };
+
+  _blobCache = new Map();
 
   static styles = css`
     :host {
@@ -61,7 +66,6 @@ export class HomeScreensaver extends LitElement {
       inset: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;
       animation: fadein 1.5s ease-in-out forwards;
     }
 
@@ -75,13 +79,113 @@ export class HomeScreensaver extends LitElement {
       inset: 0;
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
-      background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 40%, transparent 65%);
+      justify-content: space-between;
+      background: linear-gradient(to bottom,
+        rgba(0,0,0,0.55) 0%,
+        transparent 28%,
+        transparent 65%,
+        rgba(0,0,0,0.65) 100%
+      );
       pointer-events: none;
       padding: 48px 56px;
       box-sizing: border-box;
     }
 
+    /* ── Top section (events) ── */
+    .ss-top {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 540px;
+    }
+
+    .ss-next-card {
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 16px;
+      padding: 18px 22px;
+      color: #fff;
+    }
+
+    .ss-next-label {
+      font-family: var(--font-sans, system-ui);
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 8px;
+    }
+
+    .ss-next-hero {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .ss-next-title {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1.1;
+      color: #fff;
+      flex: 1;
+    }
+
+    .ss-next-meta {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      margin-top: 4px;
+    }
+
+    .ss-next-countdown {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .ss-count-num {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 2.4rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .ss-count-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.5);
+      margin-top: 2px;
+    }
+
+    .ss-event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .ss-event-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(255,255,255,0.8);
+      font-family: var(--font-sans, system-ui);
+      font-size: 0.82rem;
+    }
+
+    .ss-event-time {
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      min-width: 36px;
+      flex-shrink: 0;
+    }
+
+    /* ── Bottom row ── */
     .bottom-row {
       display: flex;
       align-items: flex-end;
@@ -174,6 +278,7 @@ export class HomeScreensaver extends LitElement {
     this._photos = [];
     this._idx    = 0;
     this._time   = this._nowTime();
+    this._cover  = true;
   }
 
   connectedCallback() {
@@ -186,17 +291,63 @@ export class HomeScreensaver extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._clockTimer);
     clearInterval(this._slideTimer);
+    for (const url of this._blobCache.values()) URL.revokeObjectURL(url);
+    this._blobCache.clear();
   }
 
   async _loadPhotos() {
-    const { data, error } = await supabase.storage.from('screensaver').list('', { limit: 500 });
-    if (error || !data?.length) return;
-    const images = data.filter(f => f.name && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name));
-    this._photos = shuffle(images.map(f => `${BUCKET_URL}/${f.name}`));
+    let urls = null;
+
+    try {
+      const cached = JSON.parse(localStorage.getItem(PHOTO_LIST_CACHE_KEY));
+      if (cached?.urls?.length && Date.now() - cached.ts < PHOTO_LIST_TTL) {
+        urls = cached.urls;
+      }
+    } catch {}
+
+    if (!urls) {
+      const { data, error } = await supabase.storage.from('screensaver').list('', { limit: 500 });
+      if (error || !data?.length) return;
+      const images = data.filter(f => f.name && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name));
+      urls = images.map(f => `${BUCKET_URL}/${f.name}`);
+      try {
+        localStorage.setItem(PHOTO_LIST_CACHE_KEY, JSON.stringify({ ts: Date.now(), urls }));
+      } catch {}
+    }
+
+    this._photos = shuffle(urls);
     this._idx = 0;
+    this._preloadAhead(0);
+
     this._slideTimer = setInterval(() => {
       this._idx = (this._idx + 1) % this._photos.length;
+      this._cover = true;
+      this._preloadAhead(this._idx);
     }, getSlideSecs() * 1000);
+  }
+
+  async _preloadAhead(fromIdx) {
+    const len = this._photos.length;
+    if (!len) return;
+    const indices = [0, 1, 2].map(i => (fromIdx + i) % len);
+    for (const i of indices) {
+      const url = this._photos[i];
+      if (!this._blobCache.has(url)) {
+        try {
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            this._blobCache.set(url, URL.createObjectURL(blob));
+          }
+        } catch {}
+      }
+    }
+    this.requestUpdate();
+  }
+
+  _onPhotoLoad(e) {
+    const img = e.target;
+    this._cover = img.naturalWidth >= img.naturalHeight;
   }
 
   _nowTime() {
@@ -212,18 +363,94 @@ export class HomeScreensaver extends LitElement {
       const cached = JSON.parse(localStorage.getItem('weather_cache'));
       if (!cached?.data) return null;
       const d = cached.data;
-      return {
-        temp: Math.round(d.current.temp_c),
-        cond: d.current.condition.text,
-        code: d.current.condition.code,
-      };
+      return { temp: Math.round(d.current.temp_c), cond: d.current.condition.text, code: d.current.condition.code };
     } catch { return null; }
+  }
+
+  _getEvents() {
+    try {
+      const cached = JSON.parse(localStorage.getItem('calendar_events_cache'));
+      if (!cached?.events) return [];
+      const now = Date.now();
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      return cached.events.filter(ev => {
+        if (!ev.start?.dateTime) return false;
+        const start = new Date(ev.start.dateTime).getTime();
+        const end = ev.end?.dateTime ? new Date(ev.end.dateTime).getTime() : start;
+        return end > now && start <= todayEnd.getTime();
+      }).sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime));
+    } catch { return []; }
+  }
+
+  _countdownDisplay(startMs) {
+    const now = Date.now();
+    if (now >= startMs) return { top: 'NOW', bottom: null, label: null };
+    const diffMin = Math.ceil((startMs - now) / 60000);
+    if (diffMin >= 60) {
+      const h = Math.floor(diffMin / 60);
+      const m = diffMin % 60;
+      return { top: `${h}H`, bottom: m > 0 ? `${m}M` : null, label: null };
+    }
+    return { top: String(diffMin), bottom: null, label: 'MIN' };
+  }
+
+  _renderEvents() {
+    const events = this._getEvents();
+    if (!events.length) return '';
+
+    const now = Date.now();
+    const threeHours = 3 * 60 * 60 * 1000;
+    const nextEvent = events.find(ev => {
+      const start = new Date(ev.start.dateTime).getTime();
+      const end = ev.end?.dateTime ? new Date(ev.end.dateTime).getTime() : start;
+      return end > now && (start - now) <= threeHours;
+    });
+    const restEvents = events.filter(ev => ev !== nextEvent);
+    const fmtTime = ev => {
+      const d = new Date(ev.start.dateTime);
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    return html`
+      <div class="ss-top">
+        ${nextEvent ? (() => {
+          const { top, bottom, label } = this._countdownDisplay(new Date(nextEvent.start.dateTime).getTime());
+          return html`
+            <div class="ss-next-card">
+              <div class="ss-next-label">Next Up</div>
+              <div class="ss-next-hero">
+                <div style="flex:1;min-width:0">
+                  <div class="ss-next-title">${nextEvent.summary ?? '(no title)'}</div>
+                  <div class="ss-next-meta">${fmtTime(nextEvent)}</div>
+                </div>
+                <div class="ss-next-countdown">
+                  <div class="ss-count-num">${top}</div>
+                  ${bottom ? html`<div class="ss-count-num">${bottom}</div>` : ''}
+                  ${label ? html`<div class="ss-count-label">${label}</div>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        })() : ''}
+        ${restEvents.length ? html`
+          <div class="ss-event-list">
+            ${restEvents.slice(0, 4).map(ev => html`
+              <div class="ss-event-row">
+                <span class="ss-event-time">${fmtTime(ev)}</span>
+                <span>${ev.summary ?? '(no title)'}</span>
+              </div>
+            `)}
+          </div>
+        ` : ''}
+      </div>
+    `;
   }
 
   render() {
     const photo   = this._photos[this._idx];
     const weather = this._getWeather();
     const total   = this._photos.length;
+    const src     = photo ? (this._blobCache.get(photo) ?? photo) : null;
 
     if (!photo) {
       return html`
@@ -235,10 +462,12 @@ export class HomeScreensaver extends LitElement {
 
     return html`
       ${keyed(this._idx, html`
-        <div class="bg" style="background-image:url('${photo}')"></div>
-        <img class="photo" src="${photo}" alt="" />
+        <div class="bg" style="background-image:url('${src}')"></div>
+        <img class="photo" src="${src}" alt="" @load=${this._onPhotoLoad}
+             style="object-fit:${this._cover ? 'cover' : 'contain'}" />
       `)}
       <div class="overlay">
+        ${this._renderEvents()}
         <div class="bottom-row">
           <div class="clock-left">
             <div class="clock-time">${this._time.display}</div>

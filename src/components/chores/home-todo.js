@@ -681,12 +681,19 @@ export class HomeTodo extends LitElement {
     localStorage.setItem(`lane-color-${personKey}`, color);
   }
 
+  // Poll interval in ms — realtime is instant when working, this is the fallback
+  static POLL_MS = 30_000; // seconds until cross-device changes are picked up (fallback if realtime drops)
+
   connectedCallback() {
     super.connectedCallback();
     this._load();
     this._loadWeekScores();
     this._subscribe();
     this._scheduleMidnight();
+    this._pollTimer = setInterval(() => {
+      this._load();
+      this._loadWeekScores();
+    }, HomeTodo.POLL_MS);
   }
 
   disconnectedCallback() {
@@ -694,6 +701,7 @@ export class HomeTodo extends LitElement {
     this._channel?.unsubscribe();
     this._scoresChannel?.unsubscribe();
     clearTimeout(this._midnightTimer);
+    clearInterval(this._pollTimer);
   }
 
   async _load() {
