@@ -200,6 +200,10 @@ export class HomeSidebar extends LitElement {
           <span class="icon">↻</span>
           Sync
         </button>
+        <button class="icon-btn" @click=${() => location.reload()} title="Reload page">
+          <span class="icon">⟳</span>
+          Reload
+        </button>
         <button class="clock" @click=${this._openSettings} title="Settings">${this._time}</button>
       </div>
     `;
