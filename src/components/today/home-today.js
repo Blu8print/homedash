@@ -673,7 +673,7 @@ export class HomeToday extends LitElement {
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      min-width: 56px;
+      min-width: 80px;
       text-align: center;
     }
     .next-up-count-top {
@@ -989,7 +989,7 @@ export class HomeToday extends LitElement {
     if (diffMin >= 60) {
       const h = Math.floor(diffMin / 60);
       const m = diffMin % 60;
-      return { top: `${h}H`, bottom: m > 0 ? `${m}M` : '', largeBottom: true };
+      return { top: m > 0 ? `${h}H ${m}M` : `${h}H`, bottom: '', largeBottom: false };
     }
     return { top: String(diffMin), bottom: 'MIN', largeBottom: false };
   }

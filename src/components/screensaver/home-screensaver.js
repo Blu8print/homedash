@@ -389,7 +389,7 @@ export class HomeScreensaver extends LitElement {
     if (diffMin >= 60) {
       const h = Math.floor(diffMin / 60);
       const m = diffMin % 60;
-      return { top: `${h}H`, bottom: m > 0 ? `${m}M` : null, label: null };
+      return { top: m > 0 ? `${h}H ${m}M` : `${h}H`, bottom: null, label: null };
     }
     return { top: String(diffMin), bottom: null, label: 'MIN' };
   }
