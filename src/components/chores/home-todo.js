@@ -674,6 +674,7 @@ export class HomeTodo extends LitElement {
       mariaelena: localStorage.getItem('lane-color-mariaelena') || '#EB337F',
       sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#3A7CF8',
     };
+    this._deleteTimers = new Map();
   }
 
   _setColor(personKey, color) {
@@ -702,6 +703,7 @@ export class HomeTodo extends LitElement {
     this._scoresChannel?.unsubscribe();
     clearTimeout(this._midnightTimer);
     clearInterval(this._pollTimer);
+    for (const t of this._deleteTimers.values()) clearTimeout(t);
   }
 
   async _load() {
@@ -788,6 +790,14 @@ export class HomeTodo extends LitElement {
     this._tasks = this._tasks.map(t => t.id === task.id ? { ...t, done, completed_at } : t);
     await supabase.from('todos').update({ done, completed_at }).eq('id', task.id);
 
+    if (done) {
+      const timer = setTimeout(() => this._autoRemove(task), 30000);
+      this._deleteTimers.set(task.id, timer);
+    } else {
+      clearTimeout(this._deleteTimers.get(task.id));
+      this._deleteTimers.delete(task.id);
+    }
+
     // Update weekly hearts score
     if (task.stars) {
       const weekKey = getWeekKey();
@@ -797,6 +807,18 @@ export class HomeTodo extends LitElement {
       this._weekScores = { ...this._weekScores, [key]: next };
       await supabase.from('week_scores')
         .upsert({ person: task.person, week_key: weekKey, hearts: next }, { onConflict: 'person,week_key' });
+    }
+  }
+
+  async _autoRemove(task) {
+    this._deleteTimers.delete(task.id);
+    const r = task.recurrence ?? 'none';
+    if (r === 'none') {
+      this._tasks = this._tasks.filter(t => t.id !== task.id);
+      await supabase.from('todos').delete().eq('id', task.id);
+    } else {
+      this._tasks = this._tasks.map(t => t.id === task.id ? { ...t, done: false, completed_at: null } : t);
+      await supabase.from('todos').update({ done: false, completed_at: null }).eq('id', task.id);
     }
   }
 
