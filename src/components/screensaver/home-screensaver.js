@@ -448,6 +448,10 @@ export class HomeScreensaver extends LitElement {
   }
 
   render() {
+    if (localStorage.getItem('screensaver-photos') === 'false') {
+      return html`<div style="position:fixed;inset:0;background:#000"></div>`;
+    }
+
     const photo   = this._photos[this._idx];
     const weather = this._getWeather();
     const total   = this._photos.length;

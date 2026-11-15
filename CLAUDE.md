@@ -9,6 +9,17 @@ A family home dashboard inspired by https://home-dashboard.wesbos.workers.dev/
 - **Vanilla JS** — no framework, no virtual DOM
 - **Deploy target**: static bundle (Cloudflare Pages, Netlify, or `file://`)
 
+The application is running on:
+
+Browser: Chrome 106.0.5249.126 (Android WebView, “Version/4.0”)
+OS: Android 6.0.1 (Build MXC89K)
+Device model: cpfzr0d0s0ga
+Screen: 1366 × 768
+Viewport: 1366 × 768
+Pixel ratio: 1x
+Effective pixels: 1366 × 768
+User agent: Mozilla/5.0 (Linux; Android 6.0.1; cpfzr0d0s0ga Build/MXC89K) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/106.0.5249.126 Safari/537.36
+
 ## Project structure
 
 ```

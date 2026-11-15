@@ -12,7 +12,7 @@ const NAV_ITEMS = [
 export class HomeSidebar extends LitElement {
   static properties = {
     active:    { type: String },
-    _syncing:  { state: true },
+    _photosOn: { state: true },
     _time:     { state: true },
   };
 
@@ -123,13 +123,9 @@ export class HomeSidebar extends LitElement {
       font-size: 20px;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .icon-btn.syncing .icon {
-      display: inline-block;
-      animation: spin 0.8s linear infinite;
+    .icon-btn.on {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
     }
 
     .clock {
@@ -156,6 +152,7 @@ export class HomeSidebar extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this._photosOn = localStorage.getItem('screensaver-photos') !== 'false';
     this._tick();
     this._clock = setInterval(() => this._tick(), 1000);
   }
@@ -174,10 +171,9 @@ export class HomeSidebar extends LitElement {
     this.dispatchEvent(new CustomEvent('open-settings', { bubbles: true, composed: true }));
   }
 
-  _sync() {
-    this._syncing = true;
-    this.dispatchEvent(new CustomEvent('calendar-sync', { bubbles: true, composed: true }));
-    setTimeout(() => { this._syncing = false; }, 1500);
+  _togglePhotos() {
+    this._photosOn = !this._photosOn;
+    localStorage.setItem('screensaver-photos', this._photosOn ? 'true' : 'false');
   }
 
   render() {
@@ -196,9 +192,9 @@ export class HomeSidebar extends LitElement {
         `)}
       </nav>
       <div class="bottom">
-        <button class="icon-btn ${this._syncing ? 'syncing' : ''}" @click=${this._sync} title="Sync calendar">
-          <span class="icon">↻</span>
-          Sync
+        <button class="icon-btn ${this._photosOn ? 'on' : ''}" @click=${this._togglePhotos} title="Toggle screensaver photos">
+          <span class="icon">${this._photosOn ? '🖼' : '⬛'}</span>
+          ${this._photosOn ? 'Photos' : 'Black'}
         </button>
         <button class="icon-btn" @click=${() => { localStorage.removeItem('screensaver_photo_list'); location.reload(); }} title="Reload page">
           <span class="icon">⟳</span>
