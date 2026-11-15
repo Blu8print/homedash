@@ -247,19 +247,30 @@ export class HomeScreensaver extends LitElement {
     }
 
     .weather-pill.lg {
-      padding: 16px 32px;
-      gap: 16px;
+      padding: 20px 40px;
+      gap: 20px;
     }
-    .weather-pill.lg .weather-icon { font-size: 2.4rem; }
-    .weather-pill.lg .weather-temp { font-size: 2.8rem; }
-    .weather-pill.lg .weather-cond { font-size: 1.1rem; }
+    .weather-pill.lg .weather-icon { font-size: 3.2rem; }
+    .weather-pill.lg .weather-temp { font-size: 3.8rem; }
+    .weather-pill.lg .weather-cond { font-size: 1.4rem; }
+
+    .ss-event-list.lg .ss-event-row {
+      font-size: 1.3rem;
+      gap: 16px;
+      padding: 4px 0;
+    }
+
+    .ss-event-list.lg .ss-event-time {
+      font-size: 1.3rem;
+      min-width: 54px;
+    }
 
     .ss-event-day {
       font-weight: 700;
       color: rgba(255,255,255,0.4);
-      min-width: 28px;
+      min-width: 40px;
       flex-shrink: 0;
-      font-size: 0.75rem;
+      font-size: 1.1rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
@@ -492,7 +503,7 @@ export class HomeScreensaver extends LitElement {
         <div class="overlay" style="background:none">
           <div class="ss-top">
             ${weekEvents.length ? html`
-              <div class="ss-event-list">
+              <div class="ss-event-list lg">
                 ${weekEvents.slice(0, 10).map(ev => html`
                   <div class="ss-event-row">
                     <span class="ss-event-day">${fmtDay(ev)}</span>
