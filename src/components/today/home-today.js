@@ -109,6 +109,10 @@ function fmtDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function fmtDateLong(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 function evTime(ev) {
   if (!ev.start?.dateTime) return 'All day';
   const d = new Date(ev.start.dateTime);
@@ -127,7 +131,8 @@ export class HomeToday extends LitElement {
     _time:        { state: true },
     _weather:     { state: true },
     _weatherErr:  { state: true },
-    _trash:       { state: true },
+    _trash:        { state: true },
+    _trashTooltip: { state: true },
     _events:        { state: true },
     _eventsErr:     { state: true },
     _authed:        { state: true },
@@ -413,6 +418,53 @@ export class HomeToday extends LitElement {
       font-weight: 600;
     }
     .trash-chip-icon { font-size: 0.85rem; }
+    .trash-chip { cursor: pointer; }
+    .trash-badge { cursor: pointer; }
+    .trash-card-wrap { position: relative; }
+    .trash-tooltip-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.4);
+    }
+    .trash-tooltip {
+      background: var(--color-card);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      padding: 1rem 1.5rem;
+      text-align: center;
+      min-width: 160px;
+      pointer-events: all;
+    }
+    .trash-tooltip-icon {
+      font-size: 2rem;
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+    .trash-tooltip-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+    .trash-tooltip-days {
+      font-family: var(--font-serif);
+      font-size: 1.5rem;
+      color: var(--color-text);
+      margin-top: 0.25rem;
+      line-height: 1;
+    }
+    .trash-tooltip-date {
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+      margin-top: 0.3rem;
+      text-transform: capitalize;
+    }
 
     /* ── Events ── */
     .events-list {
@@ -786,7 +838,8 @@ export class HomeToday extends LitElement {
     this._time       = this._nowTime();
     this._weather    = null;
     this._weatherErr = null;
-    this._trash      = [];
+    this._trash        = [];
+    this._trashTooltip = null;
     this._events     = [];
     this._eventsErr  = null;
     this._authed     = false;
@@ -1234,11 +1287,20 @@ export class HomeToday extends LitElement {
     const pill  = days === 0 ? ['Today',        'trash-pill trash-today']
                 : days === 1 ? ['Tomorrow',     'trash-pill trash-tomorrow']
                 :              [`in ${days}d`,  'trash-pill trash-later'];
+
+    const tt = this._trashTooltip;
+    const ttDaysLabel = tt
+      ? tt.days === 0 ? 'Today'
+      : tt.days === 1 ? 'Tomorrow'
+      : `in ${tt.days} days`
+      : '';
+
     return html`
-      <div class="card">
+      <div class="card trash-card-wrap">
         <div class="card-label">Trash</div>
         <div class="trash-next">
-          <div class="trash-badge" style="background:${meta.bg};color:${meta.color}">${meta.icon}</div>
+          <div class="trash-badge" style="background:${meta.bg};color:${meta.color}"
+               @click=${() => this._trashTooltip = { waste_type: next.waste_type, date: next.date, days }}>${meta.icon}</div>
           <div class="trash-info">
             <div class="trash-type">${meta.label}</div>
             <div class="trash-date">${fmtDate(next.date)}</div>
@@ -1249,12 +1311,26 @@ export class HomeToday extends LitElement {
           <div class="trash-upcoming-row">
             ${rest.map(r => {
               const m = WASTE_META[r.waste_type] ?? { label: r.waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
+              const d = daysUntil(r.date);
               return html`
-                <div class="trash-chip" style="background:${m.bg};color:${m.color}">
+                <div class="trash-chip" style="background:${m.bg};color:${m.color}"
+                     @click=${() => this._trashTooltip = { waste_type: r.waste_type, date: r.date, days: d }}>
                   <span class="trash-chip-icon">${m.icon}</span>${m.label}
                 </div>
               `;
             })}
+          </div>
+        ` : ''}
+        ${tt ? html`
+          <div class="trash-tooltip-overlay" @click=${() => this._trashTooltip = null}>
+            <div class="trash-tooltip" @click=${e => e.stopPropagation()}>
+              <div class="trash-tooltip-icon" style="color:${(WASTE_META[tt.waste_type] ?? {}).color ?? '#6b7280'}">
+                ${(WASTE_META[tt.waste_type] ?? { icon: '?' }).icon}
+              </div>
+              <div class="trash-tooltip-label">${(WASTE_META[tt.waste_type] ?? { label: tt.waste_type }).label}</div>
+              <div class="trash-tooltip-days">${ttDaysLabel}</div>
+              <div class="trash-tooltip-date">${fmtDateLong(tt.date)}</div>
+            </div>
           </div>
         ` : ''}
       </div>
