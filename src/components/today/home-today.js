@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase.js';
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const WEATHER_KEY    = import.meta.env.VITE_WEATHER_API_KEY;
-const OPENROUTER_KEY = import.meta.env.VITE_OpenRouter_Key;
+const OPENROUTER_KEY  = import.meta.env.VITE_OpenRouter_Key;
+const API_NINJAS_KEY  = import.meta.env.VITE_API_NINJAS_KEY;
 
 // ─── Todo lanes ──────────────────────────────────────────────────────────────
 const TODO_PEOPLE = [
@@ -938,12 +939,17 @@ export class HomeToday extends LitElement {
   }
 
   async _loadQuote() {
-    const { data } = await supabase.from('quotes_of_the_day').select('quote, source');
-    if (!data?.length) return;
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const dayOfYear = Math.floor((now - start) / 86400000);
-    this._quote = data[dayOfYear % data.length];
+    if (!API_NINJAS_KEY) return;
+    try {
+      const res = await fetch('https://api.api-ninjas.com/v2/quoteoftheday', {
+        headers: { 'X-Api-Key': API_NINJAS_KEY },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      const item = Array.isArray(json) ? json[0] : json;
+      if (!item?.quote) return;
+      this._quote = { quote: item.quote, source: item.author ?? item.source ?? '' };
+    } catch { /* silent */ }
   }
 
   // ── Calendar ───────────────────────────────────────────────────────────────
