@@ -369,7 +369,15 @@ export class HomeScreensaver extends LitElement {
     }
 
     .overlay.dark {
+      justify-content: flex-start;
       animation: fadein 0.8s ease-out forwards;
+    }
+
+    .dark-quote-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .overlay.dark .clock-time {
@@ -816,7 +824,9 @@ export class HomeScreensaver extends LitElement {
               </div>
             </div>
           </div>
-          <div class="dark-quote">${todayQuote}</div>
+          <div class="dark-quote-wrap">
+            <div class="dark-quote">${todayQuote}</div>
+          </div>
           <div class="bottom-row">
             <div class="clock-left">
               <div class="clock-time">${this._time.display}</div>
