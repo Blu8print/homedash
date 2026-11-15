@@ -255,24 +255,80 @@ export class HomeScreensaver extends LitElement {
     .weather-pill.lg .weather-cond { font-size: 1.4rem; }
 
     .ss-event-list.lg .ss-event-row {
+      display: grid;
+      grid-template-columns: 60px 72px 1fr;
+      align-items: center;
+      column-gap: 20px;
       font-size: 1.3rem;
-      gap: 16px;
-      padding: 4px 0;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .ss-event-list.lg .ss-event-row:last-child {
+      border-bottom: none;
+    }
+
+    .ss-event-list.lg .ss-event-row.upcoming {
+      grid-template-columns: 60px 72px 1fr auto;
+      background: rgba(245,158,11,0.07);
+      border-left: 3px solid rgba(245,158,11,0.6);
+      padding-left: 12px;
+      margin-left: -15px;
+      border-bottom-color: rgba(245,158,11,0.15);
     }
 
     .ss-event-list.lg .ss-event-time {
       font-size: 1.3rem;
-      min-width: 54px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .ss-event-title {
+      color: rgba(255,255,255,0.92);
+    }
+
+    .ss-event-list.lg .ss-event-row.upcoming .ss-event-title {
+      color: #fff;
+    }
+
+    .ss-countdown {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 1rem;
+      font-weight: 900;
+      color: rgba(245,158,11,0.9);
+      background: rgba(245,158,11,0.12);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 6px;
+      padding: 4px 10px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
     }
 
     .ss-event-day {
       font-weight: 700;
-      color: rgba(255,255,255,0.4);
-      min-width: 40px;
+      background: rgba(245,158,11,0.15);
+      border: 1px solid rgba(245,158,11,0.35);
+      border-radius: 6px;
+      padding: 3px 9px;
+      color: rgba(245,158,11,0.9);
+      min-width: 44px;
       flex-shrink: 0;
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
+      text-align: center;
+    }
+
+    .overlay.dark {
+      animation: fadein 0.8s ease-out forwards;
+    }
+
+    .overlay.dark .clock-time {
+      text-shadow: 0 0 80px rgba(255,255,255,0.08), 0 2px 24px rgba(0,0,0,0.5);
+    }
+
+    .overlay.dark .clock-date {
+      color: rgba(255,255,255,0.6);
+      font-size: 1.2rem;
     }
 
     .tap-hint {
@@ -499,18 +555,31 @@ export class HomeScreensaver extends LitElement {
       const weekEvents = this._getWeekEvents();
       const fmtDay  = ev => new Date(ev.start.dateTime).toLocaleDateString('en-GB', { weekday: 'short' });
       const fmtTime = ev => { const d = new Date(ev.start.dateTime); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+      const twoHours = 2 * 60 * 60 * 1000;
+      const fmtCountdown = ev => {
+        const { top, label } = this._countdownDisplay(new Date(ev.start.dateTime).getTime());
+        return label ? `${top} ${label}` : top;
+      };
+      const isUpcoming = ev => {
+        const diff = new Date(ev.start.dateTime).getTime() - Date.now();
+        return diff >= 0 && diff <= twoHours;
+      };
       return html`
-        <div class="overlay" style="background:none">
+        <div class="overlay dark" style="background:none">
           <div class="ss-top">
             ${weekEvents.length ? html`
               <div class="ss-event-list lg">
-                ${weekEvents.slice(0, 10).map(ev => html`
-                  <div class="ss-event-row">
-                    <span class="ss-event-day">${fmtDay(ev)}</span>
-                    <span class="ss-event-time">${fmtTime(ev)}</span>
-                    <span>${ev.summary ?? '(no title)'}</span>
-                  </div>
-                `)}
+                ${weekEvents.slice(0, 10).map(ev => {
+                  const upcoming = isUpcoming(ev);
+                  return html`
+                    <div class="ss-event-row ${upcoming ? 'upcoming' : ''}">
+                      <span class="ss-event-day">${fmtDay(ev)}</span>
+                      <span class="ss-event-time">${fmtTime(ev)}</span>
+                      <span class="ss-event-title">${ev.summary ?? '(no title)'}</span>
+                      ${upcoming ? html`<span class="ss-countdown">${fmtCountdown(ev)}</span>` : ''}
+                    </div>
+                  `;
+                })}
               </div>
             ` : ''}
           </div>
