@@ -374,7 +374,7 @@ export class HomeToday extends LitElement {
       align-self: center;
       font-size: 0.72rem;
     }
-    .trash-today    { background: #fef3c7; color: #92400e; font-size: 1.3rem; padding: 6px 16px; }
+    .trash-today    { background: var(--color-buzzsaw-soft, #DCE9DE); color: var(--color-buzzsaw, #477659); font-size: 1.3rem; padding: 6px 16px; }
     .trash-tomorrow { background: #dbeafe; color: #1e40af; font-size: 1.3rem; padding: 6px 16px; }
     .trash-later    { background: var(--color-card-alt); color: var(--color-text-muted); }
     .trash-upcoming-row {
@@ -433,8 +433,8 @@ export class HomeToday extends LitElement {
       font-weight: 700;
       padding: 2px 7px;
       border-radius: 999px;
-      background: var(--color-accent-yellow-bg);
-      color: #92400e;
+      background: var(--color-accent-bg, #EDE0CC);
+      color: var(--color-accent, #7A6544);
       white-space: nowrap;
       align-self: center;
     }
@@ -630,7 +630,7 @@ export class HomeToday extends LitElement {
 
     /* ── Next Up ── */
     .next-up-card {
-      background: #f59e0b;
+      background: var(--color-next-up, #3E5A4E);
       border-radius: var(--radius);
       padding: 20px 22px;
       box-sizing: border-box;
@@ -640,7 +640,7 @@ export class HomeToday extends LitElement {
       font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: rgba(0,0,0,0.45);
+      color: rgba(255,255,255,0.5);
       margin-bottom: 10px;
     }
     .next-up-hero {
@@ -657,14 +657,14 @@ export class HomeToday extends LitElement {
       font-size: 2rem;
       line-height: 1.1;
       font-weight: 700;
-      color: #000;
+      color: #fff;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .next-up-meta {
       font-size: 0.85rem;
-      color: rgba(0,0,0,0.55);
+      color: rgba(255,255,255,0.65);
       margin-top: 4px;
     }
     .next-up-countdown {
@@ -681,13 +681,13 @@ export class HomeToday extends LitElement {
       font-size: 3rem;
       font-weight: 900;
       line-height: 1;
-      color: #000;
+      color: #fff;
     }
     .next-up-count-bottom {
       font-size: 0.6rem;
       font-weight: 700;
       letter-spacing: 0.1em;
-      color: rgba(0,0,0,0.5);
+      color: rgba(255,255,255,0.55);
       margin-top: 2px;
     }
     .next-up-count-bottom.large {
@@ -695,14 +695,14 @@ export class HomeToday extends LitElement {
       font-size: 3rem;
       font-weight: 900;
       line-height: 1;
-      color: #000;
+      color: #fff;
       letter-spacing: 0;
       margin-top: 0;
     }
     .next-up-rest {
       margin-top: 14px;
       padding-top: 12px;
-      border-top: 1px solid rgba(0,0,0,0.15);
+      border-top: 1px solid rgba(255,255,255,0.2);
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -722,14 +722,14 @@ export class HomeToday extends LitElement {
       flex: 1;
       font-size: 0.85rem;
       font-weight: 600;
-      color: rgba(0,0,0,0.65);
+      color: rgba(255,255,255,0.75);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .next-up-secondary-time {
       font-size: 0.75rem;
-      color: rgba(0,0,0,0.45);
+      color: rgba(255,255,255,0.5);
       flex-shrink: 0;
     }
   `;
@@ -791,10 +791,17 @@ export class HomeToday extends LitElement {
   _parseWeatherData(data) {
     const now     = new Date();
     const curHour = now.getHours();
-    const fd      = data.forecast.forecastday[0];
-    const hours   = fd.hour
+    const fd          = data.forecast.forecastday[0];
+    const todayHours  = fd.hour
       .map(h => ({ hour: new Date(h.time).getHours(), temp: Math.round(h.temp_c), code: h.condition.code }))
-      .filter(h => h.hour >= curHour && h.hour <= curHour + 7);
+      .filter(h => h.hour >= curHour);
+    const needed      = 8 - todayHours.length;
+    const tomorrowHours = needed > 0 && data.forecast.forecastday[1]
+      ? data.forecast.forecastday[1].hour
+          .slice(0, needed)
+          .map(h => ({ hour: new Date(h.time).getHours(), temp: Math.round(h.temp_c), code: h.condition.code }))
+      : [];
+    const hours = [...todayHours, ...tomorrowHours];
     const upcoming = data.forecast.forecastday.slice(1).map(d => ({
       label: new Date(d.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2),
       hi:    Math.round(d.day.maxtemp_c),
@@ -828,7 +835,7 @@ export class HomeToday extends LitElement {
 
     // Always fetch fresh in background; refresh every hour
     const fetchFresh = async () => {
-      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=3&aqi=no&alerts=no`;
+      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=7&aqi=no&alerts=no`;
       const delays = [0, 10000, 30000]; // immediate, 10s, 30s
       for (let i = 0; i < delays.length; i++) {
         if (delays[i] > 0) await new Promise(r => setTimeout(r, delays[i]));

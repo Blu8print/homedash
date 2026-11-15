@@ -6,21 +6,27 @@
 
 :root {
   /* Color palette */
-  --color-bg: #f0ebe0;
-  --color-sidebar: #1a1a1a;
+  --color-bg: #E7EBE4;
+  --color-sidebar: #2C3A34;
   --color-sidebar-text: #ffffff;
-  --color-text: #1a1a1a;
-  --color-text-muted: #666666;
-  --color-card: #ffffff;
-  --color-card-alt: #f5f0e8;
-  --color-border: #e0dbd0;
-  --color-accent-yellow: #f5c842;
-  --color-accent-yellow-bg: #fdf3c0;
+  --color-text: #1F2A26;
+  --color-text-muted: #55625B;
+  --color-card: #F9FAF6;
+  --color-card-alt: #EFF2EC;
+  --color-border: #DCE2D9;
+  --color-accent: #7A6544;
+  --color-accent-bg: #EDE0CC;
+  --color-accent-yellow: #7A6544;
+  --color-accent-yellow-bg: #EDE0CC;
+  --color-next-up: #3E5A4E;
 
   /* Family member colors */
-  --color-wes: #3b82f6;
-  --color-claudia: #ec4899;
-  --color-buzzsaw: #10b981;
+  --color-wes: #3D6B7A;
+  --color-wes-soft: #D8E6E9;
+  --color-claudia: #A9536B;
+  --color-claudia-soft: #F0DEE2;
+  --color-buzzsaw: #477659;
+  --color-buzzsaw-soft: #DCE9DE;
   --color-skidmark: #f59e0b;
 
   /* Typography */
