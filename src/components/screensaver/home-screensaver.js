@@ -246,6 +246,24 @@ export class HomeScreensaver extends LitElement {
       font-weight: 500;
     }
 
+    .weather-pill.lg {
+      padding: 16px 32px;
+      gap: 16px;
+    }
+    .weather-pill.lg .weather-icon { font-size: 2.4rem; }
+    .weather-pill.lg .weather-temp { font-size: 2.8rem; }
+    .weather-pill.lg .weather-cond { font-size: 1.1rem; }
+
+    .ss-event-day {
+      font-weight: 700;
+      color: rgba(255,255,255,0.4);
+      min-width: 28px;
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
     .tap-hint {
       position: absolute;
       bottom: 20px;
@@ -383,6 +401,23 @@ export class HomeScreensaver extends LitElement {
     } catch { return []; }
   }
 
+  _getWeekEvents() {
+    try {
+      const cached = JSON.parse(localStorage.getItem('calendar_events_cache'));
+      if (!cached?.events) return [];
+      const now = Date.now();
+      const weekEnd = new Date();
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      weekEnd.setHours(23, 59, 59, 999);
+      return cached.events.filter(ev => {
+        if (!ev.start?.dateTime) return false;
+        const start = new Date(ev.start.dateTime).getTime();
+        const end = ev.end?.dateTime ? new Date(ev.end.dateTime).getTime() : start;
+        return end > now && start <= weekEnd.getTime();
+      }).sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime));
+    } catch { return []; }
+  }
+
   _countdownDisplay(startMs) {
     const now = Date.now();
     if (now >= startMs) return { top: 'NOW', bottom: null, label: null };
@@ -449,7 +484,43 @@ export class HomeScreensaver extends LitElement {
 
   render() {
     if (localStorage.getItem('screensaver-photos') === 'false') {
-      return html`<div style="position:fixed;inset:0;background:#000"></div>`;
+      const weather = this._getWeather();
+      const weekEvents = this._getWeekEvents();
+      const fmtDay  = ev => new Date(ev.start.dateTime).toLocaleDateString('en-GB', { weekday: 'short' });
+      const fmtTime = ev => { const d = new Date(ev.start.dateTime); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+      return html`
+        <div class="overlay" style="background:none">
+          <div class="ss-top">
+            ${weekEvents.length ? html`
+              <div class="ss-event-list">
+                ${weekEvents.slice(0, 10).map(ev => html`
+                  <div class="ss-event-row">
+                    <span class="ss-event-day">${fmtDay(ev)}</span>
+                    <span class="ss-event-time">${fmtTime(ev)}</span>
+                    <span>${ev.summary ?? '(no title)'}</span>
+                  </div>
+                `)}
+              </div>
+            ` : ''}
+          </div>
+          <div class="bottom-row">
+            <div class="clock-left">
+              <div class="clock-time">${this._time.display}</div>
+              <div class="clock-date">${this._time.date}</div>
+            </div>
+            <div class="right-stack">
+              ${weather ? html`
+                <div class="weather-pill lg">
+                  <span class="weather-icon">${wapiEmoji(weather.code)}</span>
+                  <span class="weather-temp">${weather.temp}°</span>
+                  <span class="weather-cond">${weather.cond}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="tap-hint">Tap anywhere to continue</div>
+      `;
     }
 
     const photo   = this._photos[this._idx];
