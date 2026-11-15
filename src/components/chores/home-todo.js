@@ -673,6 +673,7 @@ export class HomeTodo extends LitElement {
     this._colors = {
       mariaelena: localStorage.getItem('lane-color-mariaelena') || '#EB337F',
       sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#3A7CF8',
+      anyone:      localStorage.getItem('lane-color-anyone')      || '#f59e0b',
     };
     this._deleteTimers = new Map();
   }
@@ -1112,14 +1113,12 @@ export class HomeTodo extends LitElement {
                     ${person.subtitle ?? `${laneDone} of ${tasks.length} completed`}
                   </div>
                 </div>
-                ${person.key !== 'anyone' ? html`
-                  <div class="color-pick-wrap" title="Change color">
-                    <div class="color-dot" style="background:${color}"></div>
-                    <input class="color-input" type="color" .value=${color}
-                      @input=${e => this._setColor(person.key, e.target.value)}
-                    />
-                  </div>
-                ` : ''}
+                <div class="color-pick-wrap" title="Change color">
+                  <div class="color-dot" style="background:${color}"></div>
+                  <input class="color-input" type="color" .value=${color}
+                    @input=${e => this._setColor(person.key, e.target.value)}
+                  />
+                </div>
                 <div class="ratio-pill">${laneDone}/${tasks.length}</div>
               </div>
 

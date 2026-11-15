@@ -31,12 +31,62 @@ function wapiEmoji(code) {
   return '🌧';
 }
 
+const DARK_PEOPLE = [
+  { key: 'mariaelena', name: 'Maria',      lsKey: 'lane-color-mariaelena', defaultColor: '#EB337F' },
+  { key: 'sebastiaan', name: 'Sebastiaan', lsKey: 'lane-color-sebastiaan', defaultColor: '#3A7CF8' },
+  { key: 'anyone',     name: 'Anyone',     lsKey: 'lane-color-anyone',     defaultColor: '#f59e0b' },
+];
+
+const WASTE_META = {
+  GFT:        { label: 'GFT',    icon: '♻️' },
+  PMD:        { label: 'PMD',    icon: '♳'  },
+  Restafval:  { label: 'Rest',   icon: '🗑️' },
+  Papier:     { label: 'Papier', icon: '📄' },
+  Kerstbomen: { label: 'Kerst',  icon: '🎄' },
+};
+
+const QUOTES = [
+  '"The secret of getting ahead is getting started." — Mark Twain',
+  '"In the middle of difficulty lies opportunity." — Albert Einstein',
+  '"It always seems impossible until it is done." — Nelson Mandela',
+  '"Strive not to be a success, but rather to be of value." — Einstein',
+  '"The only way to do great work is to love what you do." — Steve Jobs',
+  '"Success is not final, failure is not fatal: it is the courage to continue." — Churchill',
+  '"Believe you can and you\'re halfway there." — Theodore Roosevelt',
+  '"The best time to plant a tree was 20 years ago. The second best is now." — Chinese Proverb',
+  '"An unexamined life is not worth living." — Socrates',
+  '"Spread love everywhere you go." — Mother Teresa',
+  '"When you reach the end of your rope, tie a knot and hang on." — Roosevelt',
+  '"You will face many defeats in life, but never let yourself be defeated." — Maya Angelou',
+  '"The greatest glory in living lies not in never falling, but in rising every time." — Mandela',
+  '"Never let the fear of striking out keep you from playing the game." — Babe Ruth',
+  '"Life is what happens when you\'re busy making other plans." — John Lennon',
+  '"Make each day your masterpiece." — John Wooden',
+  '"You miss 100% of the shots you don\'t take." — Wayne Gretzky',
+  '"Whether you think you can or you think you can\'t, you\'re right." — Henry Ford',
+  '"Do one thing every day that scares you." — Eleanor Roosevelt',
+  '"Darkness cannot drive out darkness: only light can do that." — Martin Luther King Jr.',
+  '"Small steps every day." — Unknown',
+  '"Today is a good day to have a good day." — Unknown',
+  '"Kind words can be short and easy to speak, but their echoes are truly endless." — Mother Teresa',
+  '"The future belongs to those who believe in the beauty of their dreams." — Eleanor Roosevelt',
+  '"It does not matter how slowly you go as long as you do not stop." — Confucius',
+  '"Everything you\'ve ever wanted is on the other side of fear." — George Addair',
+  '"Hardships often prepare ordinary people for an extraordinary destiny." — C.S. Lewis',
+  '"Believe in yourself and all that you are." — Christian D. Larson',
+  '"Act as if what you do makes a difference. It does." — William James',
+  '"Nothing is impossible, the word itself says I\'m possible." — Audrey Hepburn',
+];
+
 export class HomeScreensaver extends LitElement {
   static properties = {
-    _photos: { state: true },
-    _idx:    { state: true },
-    _time:   { state: true },
-    _cover:  { state: true },
+    _photos:            { state: true },
+    _idx:               { state: true },
+    _time:              { state: true },
+    _cover:             { state: true },
+    _darkTodos:         { state: true },
+    _darkShoppingCount: { state: true },
+    _darkTrash:         { state: true },
   };
 
   _blobCache = new Map();
@@ -357,26 +407,145 @@ export class HomeScreensaver extends LitElement {
       transition: background 0.3s;
     }
     .dot.active { background: rgba(255,255,255,0.9); }
+
+    /* ── Dark screen full layout ── */
+    .ss-dark-top {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .ss-dark-layout {
+      display: flex;
+      gap: 56px;
+      align-items: flex-start;
+    }
+
+    .ss-dark-events { flex: 1; }
+
+    .ss-dark-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      flex-shrink: 0;
+      width: 280px;
+    }
+
+    .trash-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(99,102,241,0.1);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 10px;
+      padding: 12px 22px;
+      color: rgba(255,255,255,0.8);
+      font-size: 1.2rem;
+      font-family: var(--font-sans, system-ui);
+      letter-spacing: 0.02em;
+      align-self: flex-start;
+    }
+
+    .chores-row {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chore-person {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chore-ring {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: conic-gradient(var(--clr) var(--pct), rgba(255,255,255,0.08) var(--pct));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chore-inner {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      font-family: var(--font-sans, system-ui);
+    }
+
+    .chore-name {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.4);
+      font-family: var(--font-sans, system-ui);
+    }
+
+    .shopping-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      padding: 10px 20px;
+      color: rgba(255,255,255,0.7);
+      font-size: 1rem;
+      font-family: var(--font-sans, system-ui);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    .shop-count { font-weight: 700; color: #fff; }
+
+    .dark-quote {
+      text-align: center;
+      font-family: var(--font-serif, Georgia, serif);
+      font-style: italic;
+      font-size: 1rem;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.02em;
+      padding: 0 80px;
+    }
   `;
 
   constructor() {
     super();
-    this._photos = [];
-    this._idx    = 0;
-    this._time   = this._nowTime();
-    this._cover  = true;
+    this._photos            = [];
+    this._idx               = 0;
+    this._time              = this._nowTime();
+    this._cover             = true;
+    this._darkTodos         = [];
+    this._darkShoppingCount = 0;
+    this._darkTrash         = [];
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._loadPhotos();
+    this._loadDarkData();
     this._clockTimer = setInterval(() => { this._time = this._nowTime(); }, 1000);
+    this._darkRefreshTimer = setInterval(() => this._loadDarkData(), 5 * 60 * 1000);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     clearInterval(this._clockTimer);
     clearInterval(this._slideTimer);
+    clearInterval(this._darkRefreshTimer);
     for (const url of this._blobCache.values()) URL.revokeObjectURL(url);
     this._blobCache.clear();
   }
@@ -485,6 +654,19 @@ export class HomeScreensaver extends LitElement {
     } catch { return []; }
   }
 
+  async _loadDarkData() {
+    const today    = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const [todosRes, shoppingRes, trashRes] = await Promise.all([
+      supabase.from('todos').select('person,done'),
+      supabase.from('shopping_items').select('*', { count: 'exact', head: true }).eq('done', false),
+      supabase.from('trash_collection').select('date,waste_type').gte('date', today).lte('date', tomorrow).order('date'),
+    ]);
+    this._darkTodos         = todosRes.data   ?? [];
+    this._darkShoppingCount = shoppingRes.count ?? 0;
+    this._darkTrash         = trashRes.data   ?? [];
+  }
+
   _countdownDisplay(startMs) {
     const now = Date.now();
     if (now >= startMs) return { top: 'NOW', bottom: null, label: null };
@@ -551,11 +733,11 @@ export class HomeScreensaver extends LitElement {
 
   render() {
     if (localStorage.getItem('screensaver-photos') === 'false') {
-      const weather = this._getWeather();
+      const weather    = this._getWeather();
       const weekEvents = this._getWeekEvents();
-      const fmtDay  = ev => new Date(ev.start.dateTime).toLocaleDateString('en-GB', { weekday: 'short' });
-      const fmtTime = ev => { const d = new Date(ev.start.dateTime); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-      const twoHours = 2 * 60 * 60 * 1000;
+      const fmtDay     = ev => new Date(ev.start.dateTime).toLocaleDateString('en-GB', { weekday: 'short' });
+      const fmtTime    = ev => { const d = new Date(ev.start.dateTime); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+      const twoHours   = 2 * 60 * 60 * 1000;
       const fmtCountdown = ev => {
         const { top, label } = this._countdownDisplay(new Date(ev.start.dateTime).getTime());
         return label ? `${top} ${label}` : top;
@@ -564,25 +746,77 @@ export class HomeScreensaver extends LitElement {
         const diff = new Date(ev.start.dateTime).getTime() - Date.now();
         return diff >= 0 && diff <= twoHours;
       };
+
+      // Trash banner: items due today or tomorrow
+      const todayStr    = new Date().toISOString().slice(0, 10);
+      const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      const trashToday  = this._darkTrash.filter(t => t.date === todayStr);
+      const trashTomorrow = this._darkTrash.filter(t => t.date === tomorrowStr);
+      const trashItems  = trashToday.length ? trashToday : trashTomorrow;
+      const trashLabel  = trashToday.length ? 'tonight' : 'tomorrow night';
+
+      // Chore rings
+      const choreData = DARK_PEOPLE.map(p => {
+        const tasks = this._darkTodos.filter(t => t.person === p.key);
+        const done  = tasks.filter(t => t.done).length;
+        const total = tasks.length;
+        const pct   = total === 0 ? 0 : Math.round((done / total) * 100);
+        const color = localStorage.getItem(p.lsKey) || p.defaultColor;
+        return { ...p, done, total, pct, color };
+      });
+
+      // Quote (cycles daily)
+      const dayOfYear  = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1)) / 86400000);
+      const todayQuote = QUOTES[dayOfYear % QUOTES.length];
+
       return html`
         <div class="overlay dark" style="background:none">
-          <div class="ss-top">
-            ${weekEvents.length ? html`
-              <div class="ss-event-list lg">
-                ${weekEvents.slice(0, 10).map(ev => {
-                  const upcoming = isUpcoming(ev);
-                  return html`
-                    <div class="ss-event-row ${upcoming ? 'upcoming' : ''}">
-                      <span class="ss-event-day">${fmtDay(ev)}</span>
-                      <span class="ss-event-time">${fmtTime(ev)}</span>
-                      <span class="ss-event-title">${ev.summary ?? '(no title)'}</span>
-                      ${upcoming ? html`<span class="ss-countdown">${fmtCountdown(ev)}</span>` : ''}
-                    </div>
-                  `;
-                })}
+          <div class="ss-dark-top">
+            ${trashItems.length ? html`
+              <div class="trash-banner">
+                <span>🗑️</span>
+                ${trashItems.map(t => (WASTE_META[t.waste_type]?.label ?? t.waste_type)).join(' · ')} · Put out ${trashLabel}
               </div>
             ` : ''}
+            <div class="ss-dark-layout">
+              <div class="ss-dark-events">
+                ${weekEvents.length ? html`
+                  <div class="ss-event-list lg">
+                    ${weekEvents.slice(0, 10).map(ev => {
+                      const upcoming = isUpcoming(ev);
+                      return html`
+                        <div class="ss-event-row ${upcoming ? 'upcoming' : ''}">
+                          <span class="ss-event-day">${fmtDay(ev)}</span>
+                          <span class="ss-event-time">${fmtTime(ev)}</span>
+                          <span class="ss-event-title">${ev.summary ?? '(no title)'}</span>
+                          ${upcoming ? html`<span class="ss-countdown">${fmtCountdown(ev)}</span>` : ''}
+                        </div>
+                      `;
+                    })}
+                  </div>
+                ` : ''}
+              </div>
+              <div class="ss-dark-right">
+                <div class="chores-row">
+                  ${choreData.map(p => html`
+                    <div class="chore-person">
+                      <div class="chore-ring" style="--clr:${p.color};--pct:${p.pct}%">
+                        <div class="chore-inner">${p.done}/${p.total}</div>
+                      </div>
+                      <div class="chore-name">${p.name}</div>
+                    </div>
+                  `)}
+                </div>
+                ${this._darkShoppingCount > 0 ? html`
+                  <div class="shopping-pill">
+                    <span>🛒</span>
+                    <span class="shop-count">${this._darkShoppingCount}</span> items to get
+                  </div>
+                ` : ''}
+              </div>
+            </div>
           </div>
+          <div class="dark-quote">${todayQuote}</div>
           <div class="bottom-row">
             <div class="clock-left">
               <div class="clock-time">${this._time.display}</div>
