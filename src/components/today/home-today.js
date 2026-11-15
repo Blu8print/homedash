@@ -77,6 +77,15 @@ const WASTE_META = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function pad(n) { return String(n).padStart(2, '0'); }
 
+function twemojiUrl(emoji) {
+  const cp = [...(emoji ?? '📝')]
+    .map(c => c.codePointAt(0))
+    .filter(n => n !== 0xFE0F) // strip variation selector-16
+    .map(n => n.toString(16))
+    .join('-');
+  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${cp}.svg`;
+}
+
 function moonPhaseEmoji() {
   const knownNewMoon = new Date('2000-01-06T18:14:00Z');
   const lunarCycle   = 29.53058867;
@@ -566,6 +575,11 @@ export class HomeToday extends LitElement {
       justify-content: center;
       font-size: 0.95rem;
       flex-shrink: 0;
+    }
+    .todo-emoji img {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
     .todo-name {
       flex: 1;
@@ -1306,7 +1320,7 @@ export class HomeToday extends LitElement {
                        @pointercancel=${() => this._onPressEnd(task.id)}
                        @pointermove=${(e) => this._onPressMove(task.id, e)}
                        @contextmenu=${(e) => e.preventDefault()}>
-                    <div class="todo-emoji" style="background:${color}18">${task.emoji ?? '📝'}</div>
+                    <div class="todo-emoji" style="background:${color}18"><img src="${twemojiUrl(task.emoji)}" alt="${task.emoji ?? '📝'}" /></div>
                     <div class="todo-name">${task.name}</div>
                     ${task.stars ? html`<div class="todo-stars">${'♥'.repeat(task.stars)}</div>` : ''}
                   </div>
