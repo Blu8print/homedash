@@ -124,6 +124,7 @@ export class HomeToday extends LitElement {
     _authed:        { state: true },
     _todos:      { state: true },
     _dismissing: { state: true },
+    _pressing:   { state: true },
     _todoColors: { state: true },
     _quote:      { state: true },
     _narrative:     { state: true },
@@ -531,8 +532,27 @@ export class HomeToday extends LitElement {
       cursor: pointer;
       transition: opacity 0.2s;
       flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .todo-item:hover { opacity: 0.75; }
+    .todo-item::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--press-color, rgba(0,0,0,0.1));
+      transform: scaleX(0);
+      transform-origin: left;
+      border-radius: 10px;
+      transition: none;
+      pointer-events: none;
+    }
+    .todo-item.pressing::after {
+      transform: scaleX(1);
+      transition: transform 600ms linear;
+    }
     .todo-item.dismissing {
       opacity: 0.3;
       pointer-events: none;
@@ -758,6 +778,9 @@ export class HomeToday extends LitElement {
     this._authed     = false;
     this._todos      = { mariaelena: [], sebastiaan: [], anyone: [] };
     this._dismissing = new Set();
+    this._pressing   = new Set();
+    this._pressTimers = new Map();
+    this._pressStarts = new Map();
     this._todoColors = {
       mariaelena: localStorage.getItem('lane-color-mariaelena') || '#EB337F',
       sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#3A7CF8',
@@ -936,6 +959,35 @@ export class HomeToday extends LitElement {
       .channel('today-todos')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => this._loadTodos())
       .subscribe();
+  }
+
+  _onPressStart(task, personKey, e) {
+    e.preventDefault();
+    const id = task.id;
+    this._pressStarts.set(id, { x: e.clientX, y: e.clientY });
+    const timer = setTimeout(() => {
+      this._pressTimers.delete(id);
+      this._pressStarts.delete(id);
+      this._pressing = new Set([...this._pressing].filter(i => i !== id));
+      this._tickTodo(task, personKey);
+    }, 600);
+    this._pressTimers.set(id, timer);
+    this._pressing = new Set([...this._pressing, id]);
+  }
+
+  _onPressEnd(id) {
+    clearTimeout(this._pressTimers.get(id));
+    this._pressTimers.delete(id);
+    this._pressStarts.delete(id);
+    this._pressing = new Set([...this._pressing].filter(i => i !== id));
+  }
+
+  _onPressMove(id, e) {
+    const start = this._pressStarts.get(id);
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 10) this._onPressEnd(id);
   }
 
   async _tickTodo(task, personKey) {
@@ -1247,8 +1299,13 @@ export class HomeToday extends LitElement {
               ${!tasks.length
                 ? html`<div class="todo-empty">All clear ✓</div>`
                 : tasks.map(task => html`
-                  <div class="todo-item ${this._dismissing.has(task.id) ? 'dismissing' : ''}"
-                       @click=${() => this._tickTodo(task, person.key)}>
+                  <div class="todo-item ${this._pressing.has(task.id) ? 'pressing' : ''} ${this._dismissing.has(task.id) ? 'dismissing' : ''}"
+                       style="--press-color: ${color}33"
+                       @pointerdown=${(e) => this._onPressStart(task, person.key, e)}
+                       @pointerup=${() => this._onPressEnd(task.id)}
+                       @pointercancel=${() => this._onPressEnd(task.id)}
+                       @pointermove=${(e) => this._onPressMove(task.id, e)}
+                       @contextmenu=${(e) => e.preventDefault()}>
                     <div class="todo-emoji" style="background:${color}18">${task.emoji ?? '📝'}</div>
                     <div class="todo-name">${task.name}</div>
                     ${task.stars ? html`<div class="todo-stars">${'♥'.repeat(task.stars)}</div>` : ''}
