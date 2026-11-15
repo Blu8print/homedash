@@ -135,7 +135,7 @@ export class HomeToday extends LitElement {
       min-height: 0;
       overflow-y: auto;
       display: block;
-      padding: 28px 32px;
+      padding: 16px 20px;
       font-family: var(--font-sans);
       box-sizing: border-box;
     }
@@ -145,16 +145,26 @@ export class HomeToday extends LitElement {
       display: grid;
       grid-template-columns: 2fr 1fr;
       gap: 16px;
+      min-width: 0;
     }
     .left-col {
       display: flex;
       flex-direction: column;
       gap: 16px;
+      min-width: 0;
+    }
+    .right-col {
+      min-width: 0;
     }
     .top-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
+      min-width: 0;
+    }
+    .top-row > * {
+      min-width: 0;
+      overflow: hidden;
     }
 
     /* ── Card base ── */
@@ -284,16 +294,16 @@ export class HomeToday extends LitElement {
       gap: 5px;
     }
     .forecast-label {
-      font-size: 0.6rem;
+      font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--color-text-muted);
-      width: 16px;
+      width: 20px;
     }
-    .forecast-icon { font-size: 0.85rem; line-height: 1; }
+    .forecast-icon { font-size: 1.2rem; line-height: 1; }
     .forecast-temps {
-      font-size: 0.68rem;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--color-text);
       white-space: nowrap;
@@ -331,7 +341,7 @@ export class HomeToday extends LitElement {
       font-weight: 600;
     }
     .hour-label.now { color: var(--color-text); }
-    .hour-icon { font-size: 1rem; line-height: 1; }
+    .hour-icon { font-size: 1.5rem; line-height: 1; }
     .hour-temp {
       font-size: 0.7rem;
       font-weight: 600;
@@ -544,8 +554,10 @@ export class HomeToday extends LitElement {
       color: var(--color-text);
       min-width: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      line-height: 1.35;
     }
     .todo-item.dismissing .todo-name {
       text-decoration: line-through;
