@@ -1,14 +1,16 @@
 import { LitElement, html, css } from 'lit';
+import { supabase } from '../../lib/supabase.js';
 
-const WEBHOOK_URL  = 'https://automation.whiterabbit.earth/webhook/0fc8915f-c932-4fd0-a7b9-be0eb31e302d';
-const HEADER_NAME  = import.meta.env.VITE_BUDGET_API_KEY;
-const HEADER_VALUE = import.meta.env.VITE_BUDGET_API_HEADER;
+const fmt = v => Number(v).toLocaleString('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
 export class HomeBudget extends LitElement {
   static properties = {
-    _items:   { state: true },
-    _loading: { state: true },
-    _error:   { state: true },
+    _lines:     { state: true },
+    _summary:   { state: true },
+    _periods:   { state: true },
+    _periodKey: { state: true },
+    _loading:   { state: true },
+    _error:     { state: true },
   };
 
   static styles = css`
@@ -20,6 +22,15 @@ export class HomeBudget extends LitElement {
       box-sizing: border-box;
       font-family: var(--font-sans);
       overflow-y: auto;
+      gap: 20px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
     }
 
     h1 {
@@ -32,7 +43,29 @@ export class HomeBudget extends LitElement {
     .subtitle {
       font-size: 0.75rem;
       color: #9ca3af;
-      margin: 0 0 28px;
+      margin: 0;
+    }
+
+    .period-select {
+      font-family: var(--font-sans);
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: var(--color-card, #fff);
+      color: #374151;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── Warnings ── */
+    .warn {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: var(--radius, 12px);
+      padding: 10px 16px;
+      font-size: 0.8rem;
+      color: #92400e;
     }
 
     .error {
@@ -45,68 +78,69 @@ export class HomeBudget extends LitElement {
 
     .loading { color: #6b7280; }
 
-    /* ── Summary totals ── */
-    .totals {
+    /* ── Summary cards ── */
+    .summary {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      margin-bottom: 24px;
     }
 
-    .total-card {
+    .sum-card {
       background: var(--color-card, #fff);
       border-radius: var(--radius, 12px);
-      padding: 16px 20px;
+      padding: 14px 18px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.07);
     }
 
-    .total-label {
+    .sum-label {
       font-size: 0.65rem;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: #9ca3af;
       margin-bottom: 4px;
     }
 
-    .total-value {
+    .sum-value {
       font-family: var(--font-serif);
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       color: #1a1a1a;
+      line-height: 1.1;
     }
 
-    .total-value.green  { color: #10b981; }
-    .total-value.amber  { color: #f59e0b; }
-    .total-value.red    { color: #ef4444; }
+    .sum-sub {
+      font-size: 0.7rem;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
 
-    /* ── Group section ── */
-    .group {
+    .sum-value.green { color: #10b981; }
+    .sum-value.red   { color: #ef4444; }
+
+    /* ── Category list ── */
+    .cats {
       background: var(--color-card, #fff);
       border-radius: var(--radius, 12px);
       padding: 20px 24px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
 
-    .group-header {
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #9ca3af;
-      margin-bottom: 16px;
-    }
-
-    /* ── Category row ── */
     .cat-row {
       display: grid;
-      grid-template-columns: 180px 1fr 72px;
+      grid-template-columns: 200px 1fr 90px;
       align-items: center;
       gap: 14px;
-      margin-bottom: 12px;
     }
 
-    .cat-row:last-child { margin-bottom: 0; }
+    .cat-meta {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
 
     .cat-name {
       font-size: 0.85rem;
@@ -117,81 +151,101 @@ export class HomeBudget extends LitElement {
       text-overflow: ellipsis;
     }
 
+    .badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: #e0e7ff;
+      color: #4338ca;
+      border-radius: 4px;
+      padding: 1px 5px;
+      flex-shrink: 0;
+    }
+
+    /* ── Progress bar ── */
     .bar-track {
-      height: 22px;
+      height: 20px;
       background: #f3f4f6;
       border-radius: 6px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
 
-    /* full budget width = 100%; spent overlaid on top */
-    .bar-budget {
+    .bar-fill {
       position: absolute;
       left: 0; top: 0; bottom: 0;
-      background: #dbeafe;
       border-radius: 6px;
-      transition: width 0.5s ease;
+      transition: width 0.4s ease;
     }
 
-    .bar-spent {
+    .bar-fill.green  { background: #10b981; }
+    .bar-fill.orange { background: #f59e0b; }
+    .bar-fill.red    { background: #ef4444; }
+
+    /* pace marker — thin line, overflows track slightly */
+    .pace-mark {
       position: absolute;
-      left: 0; top: 0; bottom: 0;
-      background: #3b82f6;
-      border-radius: 6px;
-      transition: width 0.5s ease;
+      top: -3px;
+      bottom: -3px;
+      width: 2px;
+      background: #6b7280;
+      border-radius: 2px;
+      transform: translateX(-50%);
+      pointer-events: none;
     }
 
-    .bar-spent.overspent { background: #ef4444; }
-
-    .cat-balance {
+    .cat-remaining {
       font-size: 0.8rem;
       font-weight: 700;
       text-align: right;
-      color: #10b981;
+      white-space: nowrap;
     }
 
-    .cat-balance.overspent { color: #ef4444; }
-    .cat-balance.zero      { color: #9ca3af; }
-
-    /* legend */
-    .legend {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.7rem;
-      color: #6b7280;
-    }
-
-    .legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-      flex-shrink: 0;
-    }
+    .cat-remaining.green { color: #10b981; }
+    .cat-remaining.red   { color: #ef4444; }
   `;
 
   connectedCallback() {
     super.connectedCallback();
-    this._fetch();
+    this._init();
+    this._timer = setInterval(() => this._fetchPeriod(), 15 * 60 * 1000);
   }
 
-  async _fetch() {
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearInterval(this._timer);
+  }
+
+  async _init() {
     this._loading = true;
-    this._error   = null;
+    this._error = null;
     try {
-      const headers = {};
-      if (HEADER_NAME && HEADER_VALUE) headers[HEADER_NAME] = HEADER_VALUE;
-      const res = await fetch(`${WEBHOOK_URL}?action=get_budget`, { headers });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      this._items = Array.isArray(json) ? json : [json];
+      const { data: periods } = await supabase
+        .from('period_summary')
+        .select('period_key, period_start, period_end, is_current')
+        .order('period_start', { ascending: false });
+      this._periods = periods ?? [];
+      const cur = periods?.find(p => p.is_current);
+      this._periodKey = cur?.period_key ?? periods?.[0]?.period_key ?? null;
+      await this._fetchPeriod();
+    } catch (e) {
+      this._error = e.message;
+      this._loading = false;
+    }
+  }
+
+  async _fetchPeriod() {
+    if (!this._periodKey) return;
+    this._loading = true;
+    this._error = null;
+    try {
+      const [linesRes, summaryRes] = await Promise.all([
+        supabase.from('budget_overview').select('*').eq('period_key', this._periodKey).order('sort_order'),
+        supabase.from('period_summary').select('*').eq('period_key', this._periodKey),
+      ]);
+      this._lines = linesRes.data ?? [];
+      this._summary = summaryRes.data?.[0] ?? null;
     } catch (e) {
       this._error = e.message;
     } finally {
@@ -199,86 +253,77 @@ export class HomeBudget extends LitElement {
     }
   }
 
-  _groups(items) {
-    const map = new Map();
-    for (const item of items) {
-      const g = item.category_group_name;
-      if (!map.has(g)) map.set(g, []);
-      map.get(g).push(item);
-    }
-    return map;
+  _onPeriodChange(e) {
+    this._periodKey = e.target.value;
+    this._fetchPeriod();
   }
 
-  _renderGroup(groupName, items) {
-    return html`
-      <div class="group">
-        <div class="group-header">${groupName}</div>
-        ${items.map(item => {
-          const budgeted  = item.budgeted_currency ?? 0;
-          const spent     = Math.abs(item.activity_currency ?? 0);
-          const balance   = item.balance_currency ?? 0;
-          const overspent = balance < 0;
+  render() {
+    if (this._loading && !this._lines) return html`<h1>Budget</h1><p class="loading">Loading…</p>`;
+    if (this._error) return html`<h1>Budget</h1><div class="error">${this._error}</div>`;
 
-          const spentPct = budgeted > 0 ? Math.min((spent / budgeted) * 100, 100) : 0;
+    const s = this._summary;
+    const HIDDEN = new Set(['Bank costs', 'Taxes & debts', 'Subscriptions']);
+    const lines = (this._lines ?? []).filter(l => !HIDDEN.has(l.category));
+    const pace = s ? Number(s.days_elapsed) / Number(s.days) : 0;
+
+    const dateOpts = { day: 'numeric', month: 'long' };
+    const periodLabel = s
+      ? `${new Date(s.period_start).toLocaleDateString('nl-NL', dateOpts)} – ${new Date(s.period_end).toLocaleDateString('nl-NL', dateOpts)}`
+      : '';
+
+    return html`
+      <div class="header">
+        <div>
+          <h1>Budget</h1>
+          <p class="subtitle">
+            ${periodLabel}${s ? html` · dag ${s.days_elapsed} van ${s.days}` : ''}
+          </p>
+        </div>
+        ${(this._periods?.length ?? 0) > 1 ? html`
+          <select class="period-select" @change=${this._onPeriodChange}>
+            ${this._periods.map(p => html`
+              <option value=${p.period_key} ?selected=${p.period_key === this._periodKey}>
+                ${new Date(p.period_start).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}${p.is_current ? ' ·' : ''}
+              </option>
+            `)}
+          </select>
+        ` : ''}
+      </div>
+
+      ${s && Number(s.uncategorised) > 0 ? html`
+        <div class="warn">⚠ ${s.uncategorised} transaction${Number(s.uncategorised) > 1 ? 's' : ''} without a category</div>
+      ` : ''}
+
+
+      <div class="cats">
+        ${lines.map(line => {
+          const budget    = Number(line.budget);
+          const spent     = Number(line.spent);
+          const remaining = Number(line.remaining);
+          const pctUsed   = Number(line.pct_used);
+          const overspent = remaining < 0;
+          const ahead     = !overspent && pctUsed > pace * 100;
+          const color     = overspent ? 'red' : ahead ? 'orange' : 'green';
+          const barWidth  = Math.min(Math.max(pctUsed, 0), 100);
 
           return html`
             <div class="cat-row">
-              <span class="cat-name">${item.name}</span>
-              <div class="bar-track">
-                <div class="bar-budget" style="width:100%"></div>
-                <div class="bar-spent ${overspent ? 'overspent' : ''}" style="width:${spentPct}%"></div>
+              <div class="cat-meta">
+                <span class="cat-name">${line.category}</span>
+                ${line.fixed ? html`<span class="badge">fixed</span>` : ''}
               </div>
-              <span class="cat-balance ${overspent ? 'overspent' : balance === 0 ? 'zero' : ''}">
-                ${item.balance_formatted ?? `€${balance}`}
+              <div class="bar-track">
+                <div class="bar-fill ${color}" style="width:${barWidth}%"></div>
+                <div class="pace-mark" style="left:${(pace * 100).toFixed(1)}%"></div>
+              </div>
+              <span class="cat-remaining ${overspent ? 'red' : 'green'}">
+                ${overspent ? '−' : ''}${fmt(Math.abs(remaining))}
               </span>
             </div>
           `;
         })}
       </div>
-    `;
-  }
-
-  render() {
-    if (this._loading) return html`<h1>Budget</h1><p class="loading">Loading…</p>`;
-    if (this._error)   return html`<h1>Budget</h1><div class="error">Fetch failed: ${this._error}</div>`;
-
-    const items       = this._items;
-    const totalBudget = items.reduce((s, i) => s + (i.budgeted_currency ?? 0), 0);
-    const totalSpent  = items.reduce((s, i) => s + Math.abs(i.activity_currency ?? 0), 0);
-    const totalLeft   = items.reduce((s, i) => s + (i.balance_currency ?? 0), 0);
-    const groups      = this._groups(items);
-
-    const fmt = v => `€${Math.abs(v).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    return html`
-      <h1>Budget</h1>
-      <p class="subtitle">YNAB · current month</p>
-
-      <div class="totals">
-        <div class="total-card">
-          <div class="total-label">Budgeted</div>
-          <div class="total-value">${fmt(totalBudget)}</div>
-        </div>
-        <div class="total-card">
-          <div class="total-label">Spent</div>
-          <div class="total-value amber">${fmt(totalSpent)}</div>
-        </div>
-        <div class="total-card">
-          <div class="total-label">Remaining</div>
-          <div class="total-value ${totalLeft < 0 ? 'red' : 'green'}">${fmt(totalLeft)}</div>
-        </div>
-      </div>
-
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-dot" style="background:#dbeafe"></div> Budgeted
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background:#3b82f6"></div> Spent
-        </div>
-      </div>
-
-      ${[...groups.entries()].map(([name, cats]) => this._renderGroup(name, cats))}
     `;
   }
 }
