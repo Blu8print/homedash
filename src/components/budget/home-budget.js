@@ -41,8 +41,9 @@ export class HomeBudget extends LitElement {
     }
 
     .subtitle {
-      font-size: 0.75rem;
-      color: #9ca3af;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #6b7280;
       margin: 0;
     }
 
@@ -269,7 +270,7 @@ export class HomeBudget extends LitElement {
 
     const dateOpts = { day: 'numeric', month: 'long' };
     const periodLabel = s
-      ? `${new Date(s.period_start).toLocaleDateString('nl-NL', dateOpts)} – ${new Date(s.period_end).toLocaleDateString('nl-NL', dateOpts)}`
+      ? `${new Date(s.period_start).toLocaleDateString('en-GB', dateOpts)} – ${new Date(s.period_end).toLocaleDateString('en-GB', dateOpts)}`
       : '';
 
     return html`
@@ -277,7 +278,7 @@ export class HomeBudget extends LitElement {
         <div>
           <h1>Budget</h1>
           <p class="subtitle">
-            ${periodLabel}${s ? html` · dag ${s.days_elapsed} van ${s.days}` : ''}
+            ${periodLabel}${s ? html` · day ${s.days_elapsed} of ${s.days}` : ''}
           </p>
         </div>
         ${(this._periods?.length ?? 0) > 1 ? html`
