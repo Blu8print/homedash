@@ -304,6 +304,16 @@ export class HomeScreensaver extends LitElement {
     .weather-pill.lg .weather-temp { font-size: 3.8rem; }
     .weather-pill.lg .weather-cond { font-size: 1.4rem; }
 
+    .baby-pill {
+      color: rgba(255,255,255,0.45);
+      font-family: var(--font-sans, system-ui);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-align: center;
+      line-height: 1;
+    }
+
     .ss-event-list.lg .ss-event-row {
       display: grid;
       grid-template-columns: 60px 72px 1fr;
@@ -435,7 +445,8 @@ export class HomeScreensaver extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 24px;
+      justify-content: flex-start;
+      gap: 10px;
       flex-shrink: 0;
       width: 280px;
     }
@@ -743,6 +754,10 @@ export class HomeScreensaver extends LitElement {
     if (localStorage.getItem('screensaver-photos') === 'false') {
       const weather    = this._getWeather();
       const weekEvents = this._getWeekEvents();
+      const _babyNow   = new Date(); _babyNow.setHours(0,0,0,0);
+      const _babyDue   = new Date('2027-03-19T00:00:00');
+      const _babyDaysPregnant = 280 - Math.round((_babyDue - _babyNow) / 86400000);
+      const baby = { weeks: Math.floor(_babyDaysPregnant / 7), day: _babyDaysPregnant % 7, daysLeft: Math.round((_babyDue - _babyNow) / 86400000) };
       const fmtDay     = ev => new Date(ev.start.dateTime).toLocaleDateString('en-GB', { weekday: 'short' });
       const fmtTime    = ev => { const d = new Date(ev.start.dateTime); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
       const twoHours   = 2 * 60 * 60 * 1000;
@@ -805,6 +820,7 @@ export class HomeScreensaver extends LitElement {
                 ` : ''}
               </div>
               <div class="ss-dark-right">
+                <div class="baby-pill">Week ${baby.weeks} Day ${baby.day} · ${baby.daysLeft} days to go</div>
                 <div class="chores-row">
                   ${choreData.map(p => html`
                     <div class="chore-person">

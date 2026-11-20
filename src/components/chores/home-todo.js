@@ -704,7 +704,8 @@ export class HomeTodo extends LitElement {
     this._scoresChannel?.unsubscribe();
     clearTimeout(this._midnightTimer);
     clearInterval(this._pollTimer);
-    for (const t of this._deleteTimers.values()) clearTimeout(t);
+    // _deleteTimers are intentionally NOT cleared here — pending DB deletes must
+    // complete even if the user navigates away before the 30-second window expires.
   }
 
   async _load() {
