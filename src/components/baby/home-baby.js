@@ -80,11 +80,11 @@ export class HomeBaby extends LitElement {
   async _loadBabyInfo() {
     const { weeks, dayOfWeek } = calcBaby();
     const today    = new Date().toISOString().slice(0, 10);
-    const cacheKey = `baby-ai-v3-${today}`;
+    const cacheKey = `baby-ai-v4-${today}`;
 
     // Purge stale keys from previous days
     Object.keys(localStorage)
-      .filter(k => k.startsWith('baby-ai-') && k !== cacheKey)
+      .filter(k => k.startsWith('baby-ai-v') && k !== cacheKey)
       .forEach(k => localStorage.removeItem(k));
 
     const cached = localStorage.getItem(cacheKey);
@@ -98,18 +98,14 @@ export class HomeBaby extends LitElement {
         body: JSON.stringify({
           model: 'anthropic/claude-haiku-4-5',
           max_tokens: 300,
-          messages: [{ role: 'user', content: `You write a daily note for Sebastiaan and Maria, expecting their daughter.
-Today: ${weeks} weeks and ${dayOfWeek} days pregnant. She is about the size of a ${BABY_SIZE[weeks]?.name ?? 'pumpkin'} (${BABY_SIZE[weeks]?.size ?? '51 cm'}).
+          messages: [{ role: 'user', content: `We are ${weeks} weeks and ${dayOfWeek} days pregnant with a girl. This week she is about the size of a ${BABY_SIZE[weeks]?.name ?? 'pumpkin'} (${BABY_SIZE[weeks]?.size ?? '51 cm'}).
 
-Write 3–4 warm, flowing sentences (max 100 words) about what is happening with her this week: one real developmental milestone, plus how she moves, senses or reacts.
+Write 3 short paragraphs for both of us parents:
+1. Her development this week: what is growing or maturing (organs, brain, senses, body), with real sizes or weights where known.
+2. Her movement and senses: how she moves, what she can hear, see, taste or feel right now.
+3. What we might notice: changes in movements, the bump or the pregnancy that are typical for this week.
 
-Make it feel like their life:
-- Address them as "you two" or by name (Sebastiaan, Maria); never "your wife" or "mom/dad-to-be".
-- When it fits her development, link it to their home: Maria's hands and her natural oils and herbs, Diuna padding through the house, Bilbo in the garden, quiet evenings in Koolwijk.
-- Use at most one such personal detail per note, and vary it day to day.
-- Tone: gentle, grounded, a little soulful; no clichés or exclamation marks.
-
-Rules: medically accurate for this exact week, metric units only, no advice, no worries or risks, no headings, lists or emoji. Plain text only.` }],
+Rules: medically accurate for this exact week, warm but factual tone, metric units only (cm, grams), no headings, lists, emoji or markdown, no advice or risks, never "your wife". Max 150 words.` }],
         }),
       });
       if (res.ok) {
