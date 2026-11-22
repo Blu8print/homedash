@@ -93,7 +93,8 @@ export class HomeTodo extends LitElement {
     _reviewIdx:        { state: true },
     _reviewDone:       { state: true },
     _sessionDone:      { state: true },
-    _expandedDone:     { state: true },
+    _expandedDone:         { state: true },
+    _expandedDoneGroups:   { state: true },
   };
 
   static styles = css`
@@ -583,6 +584,8 @@ export class HomeTodo extends LitElement {
 
     /* ── Done section (Today tab) ── */
     .done-section { flex-shrink: 0; margin-top: 4px; }
+
+    .done-date-group { flex-shrink: 0; margin-bottom: 2px; }
 
     .done-toggle {
       width: 100%;
@@ -1105,6 +1108,7 @@ export class HomeTodo extends LitElement {
     this._reviewDone       = false;
     this._sessionDone      = { mariaelena: 0, sebastiaan: 0, anyone: 0 };
     this._expandedDone     = { mariaelena: false, sebastiaan: false, anyone: false };
+    this._expandedDoneGroups = {};
     this._colors = {
       mariaelena: localStorage.getItem('lane-color-mariaelena') || '#EB337F',
       sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#3A7CF8',
@@ -1237,11 +1241,17 @@ export class HomeTodo extends LitElement {
     await supabase.from('todos').update({ done, completed_at, last_touched }).eq('id', task.id);
 
     if (done) {
-      // Only auto-remove today-bucket non-recurring tasks after 30s
-      const bucket = task.bucket ?? 'today';
-      if (bucket === 'today') {
+      const r = task.recurrence ?? 'none';
+      if (r !== 'none') {
+        // Recurring: reset to undone after 30s
         const timer = setTimeout(() => this._autoRemove(task), 30000);
         this._deleteTimers.set(task.id, timer);
+      } else {
+        // Non-recurring: track session wins, stay in DB as done
+        this._sessionDone = {
+          ...this._sessionDone,
+          [task.person]: (this._sessionDone[task.person] ?? 0) + 1,
+        };
       }
     } else {
       clearTimeout(this._deleteTimers.get(task.id));
@@ -1262,22 +1272,11 @@ export class HomeTodo extends LitElement {
 
   async _autoRemove(task) {
     this._deleteTimers.delete(task.id);
-    const r = task.recurrence ?? 'none';
-    if (r === 'none') {
-      // Track session wins
-      this._sessionDone = {
-        ...this._sessionDone,
-        [task.person]: (this._sessionDone[task.person] ?? 0) + 1,
-      };
-      this._tasks = this._tasks.filter(t => t.id !== task.id);
-      await supabase.from('todos').delete().eq('id', task.id);
-    } else {
-      // Recurring: reset to undone
-      this._tasks = this._tasks.map(t =>
-        t.id === task.id ? { ...t, done: false, completed_at: null } : t
-      );
-      await supabase.from('todos').update({ done: false, completed_at: null }).eq('id', task.id);
-    }
+    // Recurring: reset to undone
+    this._tasks = this._tasks.map(t =>
+      t.id === task.id ? { ...t, done: false, completed_at: null } : t
+    );
+    await supabase.from('todos').update({ done: false, completed_at: null }).eq('id', task.id);
   }
 
   // ── Edit modal ──
@@ -1429,6 +1428,26 @@ export class HomeTodo extends LitElement {
     };
   }
 
+  _toggleDoneDateGroup(personKey, dateKey) {
+    const key = `${personKey}__${dateKey}`;
+    this._expandedDoneGroups = {
+      ...this._expandedDoneGroups,
+      [key]: !(this._expandedDoneGroups[key] ?? dateKey === todayISO()),
+    };
+  }
+
+  async _restoreTask(task) {
+    const patch = { done: false, completed_at: null, bucket: 'someday', last_touched: new Date().toISOString() };
+    this._tasks = this._tasks.map(t => t.id === task.id ? { ...t, ...patch } : t);
+    await supabase.from('todos').update(patch).eq('id', task.id);
+  }
+
+  _formatDateLabel(dateKey) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (dateKey === yesterday) return 'Yesterday';
+    return new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
   // ── Drag & drop ──
 
   _onDragStart(e, task) {
@@ -1512,11 +1531,13 @@ export class HomeTodo extends LitElement {
       { key: 'someday', label: 'Someday' },
       { key: 'backlog', label: 'Backlog' },
       { key: 'today',   label: 'Today' },
+      { key: 'done',    label: 'Done' },
     ];
     const counts = {
       today:   this._tasks.filter(t => (t.bucket ?? 'today') === 'today'   && !t.done).length,
       backlog: this._tasks.filter(t => (t.bucket ?? 'today') === 'backlog' && !t.done).length,
       someday: this._tasks.filter(t => (t.bucket ?? 'today') === 'someday' && !t.done).length,
+      done:    this._tasks.filter(t => t.done).length,
     };
     return html`
       <div class="tab-bar">
@@ -1637,10 +1658,93 @@ export class HomeTodo extends LitElement {
     `;
   }
 
+  // ── Render: done history lane ──
+
+  _renderDoneLane(person) {
+    const color    = this._colors[person.key] ?? person.defaultColor;
+    const allTime  = this._tasks.filter(t => t.person === person.key && t.done).length;
+    const doneTasks = this._tasks
+      .filter(t => t.person === person.key && t.done)
+      .sort((a, b) => new Date(b.completed_at || b.created_at) - new Date(a.completed_at || a.created_at));
+
+    // Group by completed date
+    const groups = new Map();
+    for (const task of doneTasks) {
+      const dateKey = (task.completed_at || task.created_at || '').slice(0, 10);
+      if (!groups.has(dateKey)) groups.set(dateKey, []);
+      groups.get(dateKey).push(task);
+    }
+    const today = todayISO();
+
+    return html`
+      <div class="lane">
+        <div class="lane-header" style="background:${color}">
+          <div class="avatar">${person.initial}</div>
+          <div class="lane-info">
+            <div class="lane-name-row">
+              <span class="lane-name">${person.name}</span>
+            </div>
+            <div class="lane-sub">${allTime} completed all-time</div>
+          </div>
+          <div class="ratio-pill">${allTime}</div>
+        </div>
+        <div class="task-list">
+          ${doneTasks.length === 0
+            ? html`<div class="empty-lane">Nothing completed yet</div>`
+            : ''
+          }
+          ${Array.from(groups.entries()).map(([dateKey, tasks]) => {
+            const isToday    = dateKey === today;
+            const label      = isToday ? 'Today' : this._formatDateLabel(dateKey);
+            const groupKey   = `${person.key}__${dateKey}`;
+            const expanded   = this._expandedDoneGroups[groupKey] ?? isToday;
+            return html`
+              <div class="done-date-group">
+                <button class="done-toggle" @click=${() => this._toggleDoneDateGroup(person.key, dateKey)}>
+                  <span class="done-toggle-icon ${expanded ? 'open' : ''}">▶</span>
+                  ${label} · ${tasks.length}
+                </button>
+                ${expanded ? html`
+                  <div class="done-list">
+                    ${tasks.map(task => this._renderDoneHistoryCard(task))}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderDoneHistoryCard(task) {
+    const timeStr = task.completed_at
+      ? new Date(task.completed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+      : '';
+    return html`
+      <div class="task-card done-card" style="cursor:pointer" title="Tap to restore"
+        @click=${() => this._restoreTask(task)}>
+        <div class="task-icon done-icon">
+          <svg width="18" height="18" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="task-body">
+          <div class="task-name-row">
+            <span class="task-name done">${task.name}</span>
+          </div>
+          ${timeStr ? html`<div class="task-when">✓ ${timeStr}</div>` : ''}
+        </div>
+        <span style="font-size:0.9rem;color:#9ca3af;flex-shrink:0">↩</span>
+      </div>
+    `;
+  }
+
   // ── Render: lane ──
 
   _renderLane(person) {
     const tab    = this._activeTab;
+    if (tab === 'done') return this._renderDoneLane(person);
     const color  = this._colors[person.key] ?? person.defaultColor;
     const totalHearts = this._weekHeartsFor(person.key);
     const sessionCount = this._sessionDone[person.key] ?? 0;
