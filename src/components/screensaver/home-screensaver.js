@@ -499,10 +499,8 @@ export class HomeScreensaver extends LitElement {
       border-radius: 50%;
       background: #000;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1px;
       font-family: var(--font-sans, system-ui);
     }
 
@@ -510,13 +508,6 @@ export class HomeScreensaver extends LitElement {
       font-size: 0.75rem;
       font-weight: 700;
       color: rgba(255,255,255,0.85);
-      line-height: 1;
-    }
-
-    .chore-alltime {
-      font-size: 0.6rem;
-      font-weight: 600;
-      color: rgba(255,255,255,0.4);
       line-height: 1;
     }
 
@@ -826,16 +817,14 @@ export class HomeScreensaver extends LitElement {
       const trashItems  = trashToday.length ? trashToday : trashTomorrow;
       const trashLabel  = trashToday.length ? 'tonight' : 'tomorrow night';
 
-      // Chore rings — today progress arc + all-time count
+      // Chore rings — done/total across all buckets
       const choreData = DARK_PEOPLE.map(p => {
-        const all        = this._darkTodos.filter(t => t.person === p.key);
-        const todayTasks = all.filter(t => t.bucket === 'today');
-        const todayTotal = todayTasks.length;
-        const todayDone  = todayTasks.filter(t => t.done).length;
-        const allTimeDone = all.filter(t => t.done).length;
-        const pct   = todayTotal > 0 ? Math.round(todayDone / todayTotal * 100) : 0;
+        const all   = this._darkTodos.filter(t => t.person === p.key);
+        const total = all.length;
+        const done  = all.filter(t => t.done).length;
+        const pct   = total > 0 ? Math.round(done / total * 100) : 0;
         const color = localStorage.getItem(p.lsKey) || p.defaultColor;
-        return { ...p, todayDone, todayTotal, allTimeDone, pct, color };
+        return { ...p, done, total, pct, color };
       });
 
       // Quote (cycles daily)
@@ -876,8 +865,7 @@ export class HomeScreensaver extends LitElement {
                     <div class="chore-person">
                       <div class="chore-ring" style="--clr:${p.color};--pct:${p.pct}%">
                         <div class="chore-inner">
-                          <div class="chore-today">${p.todayDone}/${p.todayTotal}</div>
-                          <div class="chore-alltime">${p.allTimeDone}</div>
+                          <div class="chore-today">${p.done}/${p.total}</div>
                         </div>
                       </div>
                       <div class="chore-name">${p.name}</div>
