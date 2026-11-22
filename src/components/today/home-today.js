@@ -1,22 +1,17 @@
 import { LitElement, html, css } from 'lit';
-import { loadGoogleAuth, requestToken, isAuthenticated, fetchCalendarEvents } from '../../lib/google-calendar.js';
-import { GOOGLE_CLIENT_ID, CALENDARS } from '../../config/calendars.js';
+import { fetchCalendarEvents } from '../../lib/google-calendar.js';
+import { CALENDARS } from '../../config/calendars.js';
 import { supabase } from '../../lib/supabase.js';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY  = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const WEATHER_KEY    = import.meta.env.VITE_WEATHER_API_KEY;
-const OPENROUTER_KEY  = import.meta.env.VITE_OpenRouter_Key;
-const API_NINJAS_KEY  = import.meta.env.VITE_API_NINJAS_KEY;
+const WEATHER_KEY   = import.meta.env.VITE_WEATHER_API_KEY;
+const OPENROUTER_KEY = import.meta.env.VITE_OpenRouter_Key;
+const API_NINJAS_KEY = import.meta.env.VITE_API_NINJAS_KEY;
 
-// ─── Todo lanes ──────────────────────────────────────────────────────────────
-const TODO_PEOPLE = [
-  { key: 'mariaelena', name: 'Mariaelena', initial: 'M', defaultColor: '#EB337F' },
-  { key: 'sebastiaan', name: 'Sebastiaan', initial: 'S', defaultColor: '#3A7CF8' },
-  { key: 'anyone',     name: 'Anyone',     initial: '★', defaultColor: '#1C1E22' },
-];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function pad(n) { return String(n).padStart(2, '0'); }
 
-// ─── Weather ──────────────────────────────────────────────────────────────────
 function wapiEmoji(code) {
   if (code === 1000)                                                   return '☀';
   if (code === 1003)                                                   return '⛅';
@@ -31,7 +26,7 @@ function wapiEmoji(code) {
 }
 
 function weatherNarrative(condText, temp, hi, lo) {
-  const t     = condText.toLowerCase();
+  const t = condText.toLowerCase();
   const rain  = t.includes('rain') || t.includes('drizzle') || t.includes('shower');
   const snow  = t.includes('snow') || t.includes('blizzard') || t.includes('sleet');
   const storm = t.includes('thunder');
@@ -48,42 +43,16 @@ function weatherNarrative(condText, temp, hi, lo) {
   else                 mood = 'Stay cool.';
 
   let desc = '';
-  if (storm)       desc = 'Thunderstorms expected.';
-  else if (snow)   desc = 'Snow on the ground.';
-  else if (rain)   desc = 'Bring an umbrella.';
-  else if (fog)    desc = 'Watch out for fog.';
-  else if (clear && temp > 14) desc = 'Lovely day ahead.';
-  else if (clear)  desc = 'Clear skies all day.';
-  else if (range > 10) desc = 'Big temperature swing today.';
-  else             desc = temp <= 10 ? 'Cool and grey.' : 'Mild and cloudy.';
+  if (storm)                        desc = 'Thunderstorms expected.';
+  else if (snow)                    desc = 'Snow on the ground.';
+  else if (rain)                    desc = 'Bring an umbrella.';
+  else if (fog)                     desc = 'Watch out for fog.';
+  else if (clear && temp > 14)      desc = 'Lovely day ahead.';
+  else if (clear)                   desc = 'Clear skies all day.';
+  else if (range > 10)              desc = 'Big temperature swing today.';
+  else                              desc = temp <= 10 ? 'Cool and grey.' : 'Mild and cloudy.';
 
   return `${desc} ${mood}`;
-}
-
-function fmtHourLabel(hour, curHour) {
-  if (hour === curHour) return 'Now';
-  return String(hour);
-}
-
-// ─── Trash ───────────────────────────────────────────────────────────────────
-const WASTE_META = {
-  GFT:        { label: 'GFT',    color: '#10b981', bg: '#d1fae5', icon: '♻' },
-  PMD:        { label: 'PMD',    color: '#f59e0b', bg: '#fef3c7', icon: '♳' },
-  Restafval:  { label: 'Rest',   color: '#6b7280', bg: '#f3f4f6', icon: '🗑' },
-  Papier:     { label: 'Papier', color: '#3b82f6', bg: '#dbeafe', icon: '📄' },
-  Kerstbomen: { label: 'Kerst',  color: '#059669', bg: '#d1fae5', icon: '🎄' },
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function pad(n) { return String(n).padStart(2, '0'); }
-
-function twemojiUrl(emoji) {
-  const cp = [...(emoji ?? '📝')]
-    .map(c => c.codePointAt(0))
-    .filter(n => n !== 0xFE0F) // strip variation selector-16
-    .map(n => n.toString(16))
-    .join('-');
-  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/${cp}.svg`;
 }
 
 function moonPhaseEmoji() {
@@ -105,25 +74,34 @@ function daysUntil(dateStr) {
   return Math.round((new Date(dateStr) - today) / 86400000);
 }
 
-function fmtDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-
-function fmtDateLong(dateStr) {
-  return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
 function evTime(ev) {
   if (!ev.start?.dateTime) return 'All day';
   const d = new Date(ev.start.dateTime);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function isToday(ev) {
-  const today = new Date().toISOString().slice(0, 10);
-  const start = ev.start?.dateTime?.slice(0, 10) ?? ev.start?.date;
-  return start === today;
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const WASTE_META = {
+  GFT:        { label: 'GFT',    icon: '♻',  chipBg: '#D4EDDA', chipColor: '#2A6E3B', chipBorder: '#80C98E' },
+  PMD:        { label: 'PMD',    icon: '♳',  chipBg: '#FFF3CD', chipColor: '#7A6000', chipBorder: '#F0D060' },
+  Restafval:  { label: 'Rest',   icon: '🗑', chipBg: '#E8E8E8', chipColor: '#444444', chipBorder: '#CCCCCC' },
+  Papier:     { label: 'Papier', icon: '📄', chipBg: '#DBEAFE', chipColor: '#1D4ED8', chipBorder: '#93C5FD' },
+  Kerstbomen: { label: 'Kerst',  icon: '🎄', chipBg: '#D1FAE5', chipColor: '#065F46', chipBorder: '#6EE7B7' },
+};
+
+const TODO_PEOPLE = [
+  { key: 'mariaelena', name: 'Maria',      lsKey: 'lane-color-mariaelena', defaultColor: '#851869' },
+  { key: 'sebastiaan', name: 'Sebastiaan', lsKey: 'lane-color-sebastiaan', defaultColor: '#137c15' },
+  { key: 'anyone',     name: 'Anyone',     lsKey: 'lane-color-anyone',     defaultColor: '#f59e0b' },
+];
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export class HomeToday extends LitElement {
@@ -131,705 +109,543 @@ export class HomeToday extends LitElement {
     _time:        { state: true },
     _weather:     { state: true },
     _weatherErr:  { state: true },
-    _trash:        { state: true },
-    _trashTooltip: { state: true },
-    _events:        { state: true },
-    _eventsErr:     { state: true },
-    _authed:        { state: true },
-    _todos:      { state: true },
-    _dismissing: { state: true },
-    _pressing:   { state: true },
-    _todoColors: { state: true },
-    _quote:      { state: true },
-    _narrative:     { state: true },
+    _trash:       { state: true },
+    _events:      { state: true },
+    _eventsErr:   { state: true },
+    _authed:      { state: true },
+    _allTodos:    { state: true },
+    _todoColors:  { state: true },
+    _quote:       { state: true },
+    _narrative:   { state: true },
+    _weekOffset:  { state: true },
   };
 
   static styles = css`
     :host {
       flex: 1;
       min-height: 0;
-      overflow-y: auto;
-      display: block;
-      padding: 16px 20px;
+      overflow: hidden;
+      display: flex;
+      gap: 12px;
+      padding: 12px;
       font-family: var(--font-sans);
       box-sizing: border-box;
     }
 
-    /* ── Grid ── */
-    .page-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 16px;
-      min-width: 0;
-    }
-    .left-col {
+    /* ── Layout ── */
+    .col-main {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
       min-width: 0;
+      min-height: 0;
     }
-    .right-col {
-      min-width: 0;
-    }
+
     .top-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      min-width: 0;
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
     }
-    .top-row > * {
-      min-width: 0;
+
+    .clock-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .weather-card {
+      flex: 1;
+    }
+
+    .col-right {
+      width: 288px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       overflow: hidden;
+    }
+
+    .col-right .card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .col-right .card.compact {
+      flex: 0 0 auto;
     }
 
     /* ── Card base ── */
     .card {
       background: var(--color-card);
-      border-radius: var(--radius);
-      padding: 20px 22px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border-radius: 14px;
+      border: 1px solid var(--color-border);
+      padding: 14px 16px;
+      overflow: hidden;
       box-sizing: border-box;
     }
+
     .card-label {
-      font-size: 0.62rem;
+      font-size: 0.58rem;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--color-text-muted);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .muted {
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      padding: 4px 0;
     }
 
     /* ── Clock ── */
-    .clock-time {
-      font-family: var(--font-serif);
-      font-size: 3.6rem;
-      line-height: 1;
-      color: var(--color-text);
-      letter-spacing: -0.02em;
-    }
-    .clock-ampm {
-      font-size: 1.1rem;
-      color: var(--color-text-muted);
-      margin-left: 4px;
-      vertical-align: super;
-      font-family: var(--font-sans);
-    }
-    .clock-date {
-      margin-top: 6px;
-      font-size: 0.85rem;
-      color: var(--color-text-muted);
-      text-transform: capitalize;
-    }
-    .clock-body {
+    .clock-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
+
+    .clock-time {
+      font-family: var(--font-serif);
+      font-size: 3.8rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--color-text);
+      letter-spacing: -0.02em;
+    }
+
+    .clock-date {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      margin-top: 6px;
+    }
+
     .clock-moon {
       font-size: 2.8rem;
       line-height: 1;
       flex-shrink: 0;
     }
+
     .clock-quote {
-      margin-top: 12px;
+      margin-top: auto;
       padding-top: 12px;
-      border-top: 1px solid var(--color-border, #e5e7eb);
-    }
-    .clock-quote-text {
       font-family: var(--font-serif);
-      font-size: 1rem;
       font-style: italic;
-      color: var(--color-text);
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
       line-height: 1.55;
     }
+
     .clock-quote-source {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      margin-top: 5px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
+      font-style: normal;
+      font-size: 0.72rem;
     }
 
     /* ── Weather ── */
-    .weather-main {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .weather-icon {
-      font-size: 2.8rem;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-    .weather-right { display: flex; flex-direction: column; }
-    .weather-top-row {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-    }
-    .weather-temp {
-      font-family: var(--font-serif);
-      font-size: 2.8rem;
-      line-height: 1;
-      font-weight: 700;
-      color: var(--color-text);
-    }
-    .weather-meta { display: flex; flex-direction: column; justify-content: center; }
-    .weather-condition {
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-      line-height: 1.3;
-    }
-    .weather-hl {
-      font-size: 0.68rem;
-      color: var(--color-text-muted);
-      line-height: 1.3;
-    }
-    .weather-hl span { color: var(--color-text); font-weight: 600; }
     .weather-top {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .weather-forecast {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      align-items: flex-end;
-      flex-shrink: 0;
-      padding-top: 2px;
-    }
-    .forecast-day {
-      display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 14px;
+      margin-bottom: 8px;
     }
-    .forecast-label {
-      font-size: 0.72rem;
+
+    .weather-icon { font-size: 3rem; line-height: 1; }
+
+    .weather-temp {
+      font-family: var(--font-serif);
+      font-size: 3.2rem;
       font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-      width: 20px;
+      line-height: 1;
+      color: var(--color-text);
+      letter-spacing: -0.02em;
     }
-    .forecast-icon { font-size: 1.2rem; line-height: 1; }
-    .forecast-temps {
-      font-size: 0.8rem;
+
+    .weather-right { flex: 1; }
+
+    .weather-cond {
+      font-size: 0.95rem;
       font-weight: 600;
       color: var(--color-text);
-      white-space: nowrap;
     }
-    .forecast-lo { color: var(--color-text-muted); font-weight: 400; }
+
+    .weather-hl {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      margin-top: 3px;
+    }
 
     .weather-narrative {
-      font-size: 0.8rem;
+      font-size: 0.72rem;
       font-style: italic;
       color: var(--color-text-muted);
-      margin-top: 8px;
-      line-height: 1.4;
+      margin-bottom: 8px;
+      line-height: 1.35;
     }
+
     .hourly-row {
       display: flex;
       gap: 10px;
-      margin-top: 10px;
-      overflow-x: auto;
-      padding-bottom: 2px;
-      border-top: 1px solid var(--color-border, #e5e7eb);
-      padding-top: 10px;
     }
-    .hourly-row::-webkit-scrollbar { display: none; }
+
     .hour-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      flex-shrink: 0;
-      min-width: 28px;
-    }
-    .hour-label {
-      font-size: 0.62rem;
-      color: var(--color-text-muted);
-      font-weight: 600;
-    }
-    .hour-label.now { color: var(--color-text); }
-    .hour-icon { font-size: 1.5rem; line-height: 1; }
-    .hour-temp {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--color-text);
+      gap: 2px;
     }
 
-    /* ── Trash ── */
-    .trash-next {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .trash-badge {
-      width: 52px;
-      height: 52px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      flex-shrink: 0;
-    }
-    .trash-info { flex: 1; }
-    .trash-type {
-      font-family: var(--font-serif);
-      font-size: 1.5rem;
-      line-height: 1;
-      color: var(--color-text);
-    }
-    .trash-date {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      margin-top: 3px;
-      text-transform: capitalize;
-    }
-    .trash-pill {
-      font-weight: 700;
-      padding: 5px 12px;
-      border-radius: 999px;
-      white-space: nowrap;
-      align-self: center;
-      font-size: 0.72rem;
-    }
-    .trash-today    { background: var(--color-buzzsaw-soft, #DCE9DE); color: var(--color-buzzsaw, #477659); font-size: 1.3rem; padding: 6px 16px; }
-    .trash-tomorrow { background: #dbeafe; color: #1e40af; font-size: 1.3rem; padding: 6px 16px; }
-    .trash-later    { background: var(--color-card-alt); color: var(--color-text-muted); }
-    .trash-upcoming-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .trash-chip {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 8px;
-      border-radius: 8px;
-      font-size: 0.68rem;
-      font-weight: 600;
-    }
-    .trash-chip-icon { font-size: 0.85rem; }
-    .trash-chip { cursor: pointer; }
-    .trash-badge { cursor: pointer; }
-    .trash-card-wrap { position: relative; }
-    .trash-tooltip-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius);
-      background: rgba(255,255,255,0.4);
-    }
-    .trash-tooltip {
-      background: var(--color-card);
-      border-radius: var(--radius);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-      padding: 1rem 1.5rem;
-      text-align: center;
-      min-width: 160px;
-      pointer-events: all;
-    }
-    .trash-tooltip-icon {
-      font-size: 2rem;
-      line-height: 1;
-      margin-bottom: 0.4rem;
-    }
-    .trash-tooltip-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-    }
-    .trash-tooltip-days {
-      font-family: var(--font-serif);
-      font-size: 1.5rem;
-      color: var(--color-text);
-      margin-top: 0.25rem;
-      line-height: 1;
-    }
-    .trash-tooltip-date {
-      font-size: 0.82rem;
-      color: var(--color-text-muted);
-      margin-top: 0.3rem;
-      text-transform: capitalize;
-    }
+    .hour-label { font-size: 0.58rem; color: var(--color-text-muted); font-weight: 600; }
+    .hour-icon  { font-size: 0.95rem; line-height: 1; }
+    .hour-temp  { font-size: 0.68rem; font-weight: 600; color: var(--color-text); }
 
-    /* ── Events ── */
-    .events-list {
+    /* ── Calendar ── */
+    .cal-card {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-    }
-    .event-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: var(--color-card-alt);
-    }
-    .event-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-top: 5px;
-      flex-shrink: 0;
-    }
-    .event-body { flex: 1; min-width: 0; }
-    .event-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--color-text);
-      white-space: nowrap;
+      min-height: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .event-meta {
-      font-size: 0.72rem;
-      color: var(--color-text-muted);
-      margin-top: 1px;
-    }
-    .event-day-badge {
-      font-size: 0.62rem;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: var(--color-accent-bg, #EDE0CC);
-      color: var(--color-accent, #7A6544);
-      white-space: nowrap;
-      align-self: center;
-    }
-    .event-day-badge.upcoming {
-      background: #f3f4f6;
-      color: var(--color-text-muted);
     }
 
-    /* ── Auth ── */
-    .auth-prompt {
+    .cal-header {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
       gap: 10px;
-      padding: 24px 0;
+      margin-bottom: 14px;
+      flex-shrink: 0;
     }
-    .auth-icon { font-size: 2rem; }
-    .auth-label {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      text-align: center;
-    }
-    .auth-btn {
-      padding: 8px 18px;
-      border-radius: 999px;
-      border: none;
-      background: var(--color-text);
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-    .auth-btn:hover { opacity: 0.8; }
 
-    /* ── Todos panel ── */
-    .todos-panel {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-    }
-    .todo-lane {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .todo-lane-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-      flex-shrink: 0;
-    }
-    .todo-lane-avatar {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.65rem;
-      font-weight: 700;
-      color: white;
-      flex-shrink: 0;
-    }
-    .todo-lane-name {
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--color-text-muted);
-    }
-    .todo-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: var(--color-card-alt);
-      cursor: pointer;
-      transition: opacity 0.2s;
-      flex-shrink: 0;
-      position: relative;
-      overflow: hidden;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .todo-item:hover { opacity: 0.75; }
-    .todo-item::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--press-color, rgba(0,0,0,0.1));
-      transform: scaleX(0);
-      transform-origin: left;
-      border-radius: 10px;
-      transition: none;
-      pointer-events: none;
-    }
-    .todo-item.pressing::after {
-      transform: scaleX(1);
-      transition: transform 600ms linear;
-    }
-    .todo-item.dismissing {
-      opacity: 0.3;
-      pointer-events: none;
-    }
-    .todo-emoji {
+    .cal-nav {
       width: 28px;
       height: 28px;
-      border-radius: 7px;
+      border-radius: 8px;
+      background: var(--color-card-alt);
+      border: 1px solid var(--color-border);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      pointer-events: auto;
+    }
+
+    .cal-title {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .cal-week-badge {
+      background: var(--color-text);
+      color: #fff;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+    }
+
+    .cal-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .cal-day-col {
+      background: var(--color-card-alt);
+      border-radius: 12px;
+      border: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .cal-day-col.today {
+      border-color: var(--color-text);
+    }
+
+    .cal-day-header {
+      padding: 7px 8px 6px;
+      text-align: center;
+      border-bottom: 1px solid var(--color-border);
       flex-shrink: 0;
     }
-    .todo-emoji img {
-      width: 16px;
-      height: 16px;
-      display: block;
+
+    .cal-day-col.today .cal-day-header {
+      background: var(--color-text);
     }
-    .todo-name {
-      flex: 1;
-      font-size: 0.8rem;
-      font-weight: 600;
+
+    .cal-day-name {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .cal-day-col.today .cal-day-name { color: rgba(255,255,255,0.65); }
+
+    .cal-day-num {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-weight: 700;
       color: var(--color-text);
-      min-width: 0;
+      line-height: 1.1;
+      margin-top: 2px;
+    }
+
+    .cal-day-col.today .cal-day-num { color: #fff; }
+
+    .cal-ev-badge {
+      display: inline-block;
+      font-size: 0.55rem;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    .cal-day-col.today .cal-ev-badge { color: rgba(255,255,255,0.55); }
+
+    .cal-day-body {
+      flex: 1;
+      padding: 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .cal-event-chip {
+      background: var(--color-card);
+      border-radius: 8px;
+      padding: 6px 8px;
+      border-left: 3px solid var(--color-accent);
+      line-height: 1.3;
+      flex-shrink: 0;
+    }
+
+    .cal-ev-time {
+      font-size: 0.58rem;
+      color: var(--color-text-muted);
+      margin-bottom: 2px;
+    }
+
+    .cal-ev-title {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--color-text);
       overflow: hidden;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
-      line-height: 1.35;
     }
-    .todo-item.dismissing .todo-name {
-      text-decoration: line-through;
+
+    .cal-day-free {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cal-free-label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       color: var(--color-text-muted);
-    }
-    .todo-stars {
-      font-size: 0.62rem;
-      color: #e11d48;
-      font-weight: 700;
-      flex-shrink: 0;
-    }
-    .todo-empty {
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-      padding: 4px 0;
+      opacity: 0.45;
     }
 
     /* ── Baby ── */
-    .baby-main {
+    .baby-row {
       display: flex;
-      align-items: center;
-      gap: 14px;
+      gap: 12px;
+      align-items: flex-start;
     }
-    .baby-badge {
-      width: 52px;
-      height: 52px;
-      border-radius: 12px;
-      background: #fce7f3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .baby-badge img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+
+    .baby-emoji { font-size: 2rem; line-height: 1; }
+
     .baby-info { flex: 1; }
+
     .baby-week {
       font-family: var(--font-serif);
       font-size: 1.5rem;
-      line-height: 1;
+      font-weight: 700;
       color: var(--color-text);
+      line-height: 1;
     }
+
     .baby-sub {
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       color: var(--color-text-muted);
       margin-top: 3px;
     }
+
     .baby-due {
+      font-size: 0.68rem;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    .baby-bar {
+      height: 4px;
+      background: var(--color-border);
+      border-radius: 999px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .baby-bar-fill {
+      height: 100%;
+      background: #d4559a;
+      border-radius: 999px;
+    }
+
+    /* ── Trash ── */
+    .trash-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+
+    .trash-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .trash-badge {
+      font-size: 0.65rem;
+      background: var(--color-card-alt);
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      color: var(--color-text-muted);
+    }
+
+    .trash-date {
       font-size: 0.72rem;
       color: var(--color-text-muted);
-      margin-top: 2px;
-    }
-    .baby-progress {
-      height: 4px;
-      background: #fce7f3;
-      border-radius: 2px;
-      margin-top: 12px;
-      overflow: hidden;
-    }
-    .baby-bar {
-      height: 100%;
-      background: #ec4899;
-      border-radius: 2px;
+      margin-bottom: 8px;
     }
 
-    /* ── Right column ── */
-    .right-col {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+    .trash-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 
-    /* ── Status ── */
-    .muted {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      padding: 8px 0;
-    }
-
-    /* ── Next Up ── */
-    .next-up-card {
-      background: var(--color-next-up, #3E5A4E);
-      border-radius: var(--radius);
-      padding: 20px 22px;
-      box-sizing: border-box;
-    }
-    .next-up-label {
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.5);
-      margin-bottom: 10px;
-    }
-    .next-up-hero {
+    .trash-chip {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 4px;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      border: 1px solid;
     }
-    .next-up-hero-body {
-      flex: 1;
-      min-width: 0;
-    }
-    .next-up-title {
-      font-family: var(--font-serif);
-      font-size: 2rem;
-      line-height: 1.1;
-      font-weight: 700;
-      color: #fff;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .next-up-meta {
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.65);
-      margin-top: 4px;
-    }
-    .next-up-countdown {
+
+    /* ── Upcoming ── */
+    .upcoming-list {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      min-width: 80px;
-      text-align: center;
+      gap: 5px;
     }
-    .next-up-count-top {
-      font-family: var(--font-serif);
-      font-size: 3rem;
-      font-weight: 900;
-      line-height: 1;
-      color: #fff;
-    }
-    .next-up-count-bottom {
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      color: rgba(255,255,255,0.55);
-      margin-top: 2px;
-    }
-    .next-up-count-bottom.large {
-      font-family: var(--font-serif);
-      font-size: 3rem;
-      font-weight: 900;
-      line-height: 1;
-      color: #fff;
-      letter-spacing: 0;
-      margin-top: 0;
-    }
-    .next-up-rest {
-      margin-top: 14px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,0.2);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .next-up-secondary {
+
+    .upcoming-row {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 7px 10px;
+      background: var(--color-card-alt);
+      border-radius: 10px;
     }
-    .next-up-secondary-dot {
-      width: 7px;
-      height: 7px;
+
+    .upcoming-dot {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .next-up-secondary-title {
-      flex: 1;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: rgba(255,255,255,0.75);
+
+    .upcoming-info { flex: 1; min-width: 0; }
+
+    .upcoming-name {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--color-text);
+      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
-    .next-up-secondary-time {
-      font-size: 0.75rem;
-      color: rgba(255,255,255,0.5);
+
+    .upcoming-time { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 1px; }
+
+    .upcoming-when {
+      font-size: 0.7rem;
+      color: var(--color-text-muted);
+      white-space: nowrap;
       flex-shrink: 0;
+    }
+
+    /* ── Task rings ── */
+    .chores-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 4px;
+      flex: 1;
+    }
+
+    .chore-person {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chore-ring {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: conic-gradient(var(--clr) var(--pct), var(--color-border) var(--pct));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chore-inner {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--color-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .chore-name {
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
     }
   `;
 
@@ -838,32 +654,27 @@ export class HomeToday extends LitElement {
     this._time       = this._nowTime();
     this._weather    = null;
     this._weatherErr = null;
-    this._trash        = [];
-    this._trashTooltip = null;
+    this._trash      = [];
     this._events     = [];
     this._eventsErr  = null;
     this._authed     = false;
-    this._todos      = { mariaelena: [], sebastiaan: [], anyone: [] };
-    this._dismissing = new Set();
-    this._pressing   = new Set();
-    this._pressTimers = new Map();
-    this._pressStarts = new Map();
+    this._allTodos   = [];
     this._todoColors = {
-      mariaelena: localStorage.getItem('lane-color-mariaelena') || '#EB337F',
-      sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#3A7CF8',
-      anyone:      '#1C1E22',
+      mariaelena: localStorage.getItem('lane-color-mariaelena') || '#851869',
+      sebastiaan:  localStorage.getItem('lane-color-sebastiaan')  || '#137c15',
+      anyone:      localStorage.getItem('lane-color-anyone')      || '#f59e0b',
     };
-    this._quote      = null;
-    this._narrative  = null;
+    this._quote     = null;
+    this._narrative = null;
+    this._weekOffset = 0;
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this._tick();
     this._clockTimer = setInterval(() => { this._time = this._nowTime(); }, 1000);
     this._loadWeather();
     this._loadTrash();
-    this._initCalendar();
+    this._loadEvents();
     this._loadTodos();
     this._subscribeTodos();
     this._loadQuote();
@@ -881,80 +692,56 @@ export class HomeToday extends LitElement {
   // ── Clock ──────────────────────────────────────────────────────────────────
   _nowTime() {
     const now = new Date();
-    const h24 = now.getHours();
-    const m   = now.getMinutes();
-    const s   = now.getSeconds();
-    const date = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-    return { display: `${pad(h24)}:${pad(m)}`, ampm: '', date };
+    return {
+      display: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      date: now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
+    };
   }
-
-  _tick() { this._time = this._nowTime(); }
 
   // ── Weather ────────────────────────────────────────────────────────────────
   _parseWeatherData(data) {
     const now     = new Date();
     const curHour = now.getHours();
-    const fd          = data.forecast.forecastday[0];
-    const todayHours  = fd.hour
+    const fd      = data.forecast.forecastday[0];
+    const todayHours = fd.hour
       .map(h => ({ hour: new Date(h.time).getHours(), temp: Math.round(h.temp_c), code: h.condition.code }))
       .filter(h => h.hour >= curHour);
-    const needed      = 8 - todayHours.length;
+    const needed = 8 - todayHours.length;
     const tomorrowHours = needed > 0 && data.forecast.forecastday[1]
       ? data.forecast.forecastday[1].hour
           .slice(0, needed)
           .map(h => ({ hour: new Date(h.time).getHours(), temp: Math.round(h.temp_c), code: h.condition.code }))
       : [];
-    const hours = [...todayHours, ...tomorrowHours];
-    const upcoming = data.forecast.forecastday.slice(1).map(d => ({
-      label: new Date(d.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' }).slice(0, 2),
-      hi:    Math.round(d.day.maxtemp_c),
-      lo:    Math.round(d.day.mintemp_c),
-      code:  d.day.condition.code,
-    }));
     return {
       temp:     Math.round(data.current.temp_c),
       condText: data.current.condition.text,
       code:     data.current.condition.code,
       hi:       Math.round(fd.day.maxtemp_c),
       lo:       Math.round(fd.day.mintemp_c),
-      hours,
+      hours:    [...todayHours, ...tomorrowHours],
       curHour,
-      upcoming,
     };
   }
 
   async _loadWeather() {
     const CACHE_KEY = 'weather_cache';
-    const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
-    // Load from cache immediately (any age — better than nothing)
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if (cached?.data) {
-        this._weather    = this._parseWeatherData(cached.data);
-        this._weatherErr = null;
-      }
-    } catch (_) {}
+      if (cached?.data) this._weather = this._parseWeatherData(cached.data);
+    } catch {}
 
-    // Always fetch fresh in background; refresh every hour
     const fetchFresh = async () => {
-      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=7&aqi=no&alerts=no`;
-      const delays = [0, 10000, 30000]; // immediate, 10s, 30s
-      for (let i = 0; i < delays.length; i++) {
-        if (delays[i] > 0) await new Promise(r => setTimeout(r, delays[i]));
-        try {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
-          const parsed = this._parseWeatherData(data);
-          this._weather    = parsed;
-          this._weatherErr = null;
-          this._loadNarrative(parsed.condText, parsed.temp, parsed.hi, parsed.lo);
-          return; // success — stop retrying
-        } catch (e) {
-          if (i === delays.length - 1 && !this._weather) this._weatherErr = e.message;
-        }
+      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=2&aqi=no&alerts=no`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+        this._weather = this._parseWeatherData(data);
+        this._weatherErr = null;
+        this._loadNarrative(this._weather.condText, this._weather.temp, this._weather.hi, this._weather.lo);
+      } catch (e) {
+        if (!this._weather) this._weatherErr = e.message;
       }
     };
 
@@ -964,14 +751,11 @@ export class HomeToday extends LitElement {
 
   async _loadNarrative(condText, temp, hi, lo) {
     const CACHE_KEY = 'weather-narrative-cache';
-    const TTL = 60 * 60 * 1000; // 1 hour
+    const TTL = 60 * 60 * 1000;
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if (cached && Date.now() - cached.ts < TTL) {
-        this._narrative = cached.text;
-        return;
-      }
-    } catch (_) {}
+      if (cached && Date.now() - cached.ts < TTL) { this._narrative = cached.text; return; }
+    } catch {}
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -979,7 +763,7 @@ export class HomeToday extends LitElement {
         body: JSON.stringify({
           model: 'anthropic/claude-haiku-4-5',
           max_tokens: 40,
-          messages: [{ role: 'user', content: `Weather in Herpen, Netherlands: ${condText}, ${temp}°C, high ${hi}°C, low ${lo}°C. Write ONE practical sentence of weather advice. Maximum 55 characters including spaces. No preamble, no quotes.` }],
+          messages: [{ role: 'user', content: `Weather in Herpen, Netherlands: ${condText}, ${temp}°C, high ${hi}°C, low ${lo}°C. Write ONE practical sentence of weather advice. Maximum 55 characters. No preamble, no quotes.` }],
         }),
       });
       if (!res.ok) return;
@@ -989,7 +773,7 @@ export class HomeToday extends LitElement {
         this._narrative = text;
         localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), text }));
       }
-    } catch (_) {}
+    } catch {}
   }
 
   // ── Trash ──────────────────────────────────────────────────────────────────
@@ -1002,23 +786,13 @@ export class HomeToday extends LitElement {
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this._trash = await res.json();
-    } catch (_) {}
+    } catch {}
   }
 
   // ── Todos ──────────────────────────────────────────────────────────────────
   async _loadTodos() {
-    const { data } = await supabase
-      .from('todos')
-      .select('id, name, emoji, done, stars, person')
-      .in('person', ['mariaelena', 'sebastiaan', 'anyone'])
-      .eq('done', false)
-      .order('sort_order')
-      .order('created_at');
-    const groups = { mariaelena: [], sebastiaan: [], anyone: [] };
-    for (const t of data ?? []) {
-      if (groups[t.person]) groups[t.person].push(t);
-    }
-    this._todos = groups;
+    const { data } = await supabase.from('todos').select('person,done');
+    this._allTodos = data ?? [];
   }
 
   _subscribeTodos() {
@@ -1028,47 +802,7 @@ export class HomeToday extends LitElement {
       .subscribe();
   }
 
-  _onPressStart(task, personKey, e) {
-    e.preventDefault();
-    const id = task.id;
-    this._pressStarts.set(id, { x: e.clientX, y: e.clientY });
-    const timer = setTimeout(() => {
-      this._pressTimers.delete(id);
-      this._pressStarts.delete(id);
-      this._pressing = new Set([...this._pressing].filter(i => i !== id));
-      this._tickTodo(task, personKey);
-    }, 600);
-    this._pressTimers.set(id, timer);
-    this._pressing = new Set([...this._pressing, id]);
-  }
-
-  _onPressEnd(id) {
-    clearTimeout(this._pressTimers.get(id));
-    this._pressTimers.delete(id);
-    this._pressStarts.delete(id);
-    this._pressing = new Set([...this._pressing].filter(i => i !== id));
-  }
-
-  _onPressMove(id, e) {
-    const start = this._pressStarts.get(id);
-    if (!start) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (Math.sqrt(dx * dx + dy * dy) > 10) this._onPressEnd(id);
-  }
-
-  async _tickTodo(task, personKey) {
-    this._dismissing = new Set([...this._dismissing, task.id]);
-    await supabase.from('todos').update({ done: true, completed_at: new Date().toISOString() }).eq('id', task.id);
-    setTimeout(() => {
-      this._dismissing = new Set([...this._dismissing].filter(id => id !== task.id));
-      this._todos = {
-        ...this._todos,
-        [personKey]: this._todos[personKey].filter(t => t.id !== task.id),
-      };
-    }, 1500);
-  }
-
+  // ── Quote ──────────────────────────────────────────────────────────────────
   async _loadQuote() {
     if (!API_NINJAS_KEY) return;
     try {
@@ -1080,22 +814,36 @@ export class HomeToday extends LitElement {
       const item = Array.isArray(json) ? json[0] : json;
       if (!item?.quote) return;
       this._quote = { quote: item.quote, source: item.author ?? item.source ?? '' };
-    } catch { /* silent */ }
+    } catch {}
   }
 
   // ── Calendar ───────────────────────────────────────────────────────────────
-  async _initCalendar() {
-    this._authed = true;
-    await this._loadEvents();
+  _getWeekDays() {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const dow = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + this._weekOffset * 7);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
   }
 
   async _loadEvents() {
     try {
-      const now  = new Date();
-      const end  = new Date(); end.setDate(end.getDate() + 7);
-      const all  = [];
+      const days = this._getWeekDays();
+      const weekStart = days[0];
+      const now = new Date();
+      const start = weekStart > now ? weekStart : now;
+      const end = new Date(days[6]);
+      end.setDate(end.getDate() + 7);
+      end.setHours(23, 59, 59, 999);
+
+      const all = [];
       for (const cal of CALENDARS) {
-        const evs = await fetchCalendarEvents(cal.id, now, end);
+        const evs = await fetchCalendarEvents(cal.id, start, end);
         evs.forEach(e => all.push({ ...e, _calColor: cal.color, _calName: cal.name }));
       }
       all.sort((a, b) => {
@@ -1103,82 +851,140 @@ export class HomeToday extends LitElement {
         const tb = b.start?.dateTime ?? b.start?.date ?? '';
         return ta.localeCompare(tb);
       });
-      this._events = all.slice(0, 8);
+      this._events = all;
+      this._authed = true;
       try {
-        localStorage.setItem('calendar_events_cache', JSON.stringify({ ts: Date.now(), events: this._events }));
+        localStorage.setItem('calendar_events_cache', JSON.stringify({ ts: Date.now(), events: all.slice(0, 30) }));
       } catch {}
     } catch (e) {
       this._eventsErr = e.message;
     }
   }
 
-  // ── Next Up ────────────────────────────────────────────────────────────────
-  _getNextUpEvents() {
-    const now = Date.now();
-    const threeHours = 3 * 60 * 60 * 1000;
-    return this._events
-      .filter(ev => {
-        if (!ev.start?.dateTime) return false;
-        const start = new Date(ev.start.dateTime).getTime();
-        const end = ev.end?.dateTime ? new Date(ev.end.dateTime).getTime() : start;
-        return now < end && (start - now) <= threeHours;
-      })
-      .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime));
-  }
-
-  _countdownDisplay(startMs) {
-    const now = Date.now();
-    if (now >= startMs) return { top: 'NOW', bottom: '', largeBottom: false };
-    const diffMin = Math.ceil((startMs - now) / 60000);
-    if (diffMin >= 60) {
-      const h = Math.floor(diffMin / 60);
-      const m = diffMin % 60;
-      return { top: m > 0 ? `${h}H ${m}M` : `${h}H`, bottom: '', largeBottom: false };
-    }
-    return { top: String(diffMin), bottom: 'MIN', largeBottom: false };
-  }
-
-  _fmtEventTime(ev) {
-    const s = new Date(ev.start.dateTime);
-    const e = ev.end?.dateTime ? new Date(ev.end.dateTime) : null;
-    const fmt = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    return e ? `${fmt(s)} – ${fmt(e)}` : fmt(s);
-  }
-
-  _renderNextUp() {
-    const events = this._getNextUpEvents();
-    if (!events.length) return '';
-    const [hero, ...rest] = events;
-    const { top, bottom, largeBottom } = this._countdownDisplay(new Date(hero.start.dateTime).getTime());
+  // ── Render ─────────────────────────────────────────────────────────────────
+  _renderClock() {
+    const { display, date } = this._time;
+    const moon = moonPhaseEmoji();
     return html`
-      <div class="next-up-card">
-        <div class="next-up-label">Next Up</div>
-        <div class="next-up-hero">
-          <div class="next-up-hero-body">
-            <div class="next-up-title">${hero.summary ?? '(no title)'}</div>
-            <div class="next-up-meta">${this._fmtEventTime(hero)}${hero.location ? ` · ${hero.location}` : ''}</div>
+      <div class="card clock-card">
+        <div class="card-label">Now</div>
+        <div class="clock-row">
+          <div>
+            <div class="clock-time">${display}</div>
+            <div class="clock-date">${date}</div>
           </div>
-          <div class="next-up-countdown">
-            <div class="next-up-count-top">${top}</div>
-            ${bottom ? html`<div class="next-up-count-bottom ${largeBottom ? 'large' : ''}">${bottom}</div>` : ''}
-          </div>
+          <div class="clock-moon">${moon}</div>
         </div>
-        ${rest.length ? html`
-          <div class="next-up-rest">
-            ${rest.map(ev => html`
-              <div class="next-up-secondary">
-                <div class="next-up-secondary-dot" style="background:${ev._calColor ?? '#6b7280'}"></div>
-                <div class="next-up-secondary-title">${ev.summary ?? '(no title)'}</div>
-                <div class="next-up-secondary-time">${this._fmtEventTime(ev)}</div>
-              </div>
-            `)}
+        ${this._quote ? html`
+          <div class="clock-quote">
+            "${this._quote.quote}"<br>
+            <span class="clock-quote-source">— ${this._quote.source}</span>
           </div>
         ` : ''}
       </div>
     `;
   }
 
-  // ── Baby ───────────────────────────────────────────────────────────────────
+  _renderWeather() {
+    if (!this._weather && this._weatherErr) return html`
+      <div class="card weather-card">
+        <div class="card-label">Weather · Koolwijk</div>
+        <div class="muted">Unavailable</div>
+      </div>
+    `;
+    if (!this._weather) return html`
+      <div class="card weather-card">
+        <div class="card-label">Weather · Koolwijk</div>
+        <div class="muted">Loading…</div>
+      </div>
+    `;
+    const { temp, condText, code, hi, lo, hours, curHour } = this._weather;
+    const narrative = this._narrative ?? weatherNarrative(condText, temp, hi, lo);
+    return html`
+      <div class="card weather-card">
+        <div class="card-label">Weather · Koolwijk</div>
+        <div class="weather-top">
+          <div class="weather-icon">${wapiEmoji(code)}</div>
+          <div class="weather-temp">${temp}°</div>
+          <div class="weather-right">
+            <div class="weather-cond">${condText}</div>
+            <div class="weather-hl">H ${hi}° · L ${lo}°</div>
+          </div>
+        </div>
+        <div class="weather-narrative">${narrative}</div>
+        <div class="hourly-row">
+          ${hours.slice(0, 7).map(h => html`
+            <div class="hour-item">
+              <div class="hour-label">${h.hour === curHour ? 'Now' : String(h.hour)}</div>
+              <div class="hour-icon">${wapiEmoji(h.code)}</div>
+              <div class="hour-temp">${h.temp}°</div>
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderCalendar() {
+    const days = this._getWeekDays();
+    const todayMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+
+    const eventsForDay = (day) => {
+      const dateStr = day.toISOString().slice(0, 10);
+      return this._events.filter(ev => {
+        const evDate = ev.start?.dateTime?.slice(0, 10) ?? ev.start?.date;
+        return evDate === dateStr;
+      });
+    };
+
+    const firstDay = days[0];
+    const lastDay  = days[6];
+    const sameMonth = firstDay.getMonth() === lastDay.getMonth();
+    const monthStr = sameMonth
+      ? firstDay.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+      : `${firstDay.toLocaleDateString('en-GB', { month: 'short' })} – ${lastDay.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
+    const weekNum = getISOWeek(firstDay);
+
+    return html`
+      <div class="card cal-card">
+        <div class="cal-header">
+          <button class="cal-nav" @click=${() => { this._weekOffset -= 1; this._loadEvents(); }}>‹</button>
+          <button class="cal-nav" @click=${() => { this._weekOffset += 1; this._loadEvents(); }}>›</button>
+          <div class="cal-title">${monthStr}</div>
+          <div class="cal-week-badge">WEEK ${weekNum}</div>
+        </div>
+        <div class="cal-grid">
+          ${days.map(day => {
+            const isToday = day.getTime() === todayMs;
+            const dayEvents = eventsForDay(day);
+            const dayName = day.toLocaleDateString('en-GB', { weekday: 'short' });
+            const dayNum  = day.getDate();
+            return html`
+              <div class="cal-day-col ${isToday ? 'today' : ''}">
+                <div class="cal-day-header">
+                  <div class="cal-day-name">${dayName}</div>
+                  <div class="cal-day-num">${dayNum}</div>
+                  ${dayEvents.length ? html`<div class="cal-ev-badge">${dayEvents.length} ev</div>` : ''}
+                </div>
+                <div class="cal-day-body">
+                  ${dayEvents.length
+                    ? dayEvents.map(ev => html`
+                        <div class="cal-event-chip" style="border-left-color:${ev._calColor ?? 'var(--color-accent)'}">
+                          <div class="cal-ev-time">${evTime(ev)}</div>
+                          <div class="cal-ev-title">${ev.summary ?? '(no title)'}</div>
+                        </div>
+                      `)
+                    : html`<div class="cal-day-free"><div class="cal-free-label">Free</div></div>`
+                  }
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
   _renderBaby() {
     const DUE = new Date('2027-03-19T00:00:00');
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1188,184 +994,47 @@ export class HomeToday extends LitElement {
     const dayOfWeek = daysPregnant % 7;
     const pct = Math.min(100, Math.round(daysPregnant / 280 * 100));
     return html`
-      <div class="card">
+      <div class="card compact">
         <div class="card-label">Baby</div>
-        <div class="baby-main">
-          <div class="baby-badge"><img src="/baby.svg" alt="Baby" /></div>
+        <div class="baby-row">
+          <div class="baby-emoji">🫄</div>
           <div class="baby-info">
             <div class="baby-week">Week ${weeks}</div>
             <div class="baby-sub">Day ${dayOfWeek} · ${daysLeft} days to go</div>
             <div class="baby-due">Due Thu 19 Mar 2027</div>
           </div>
         </div>
-        <div class="baby-progress">
-          <div class="baby-bar" style="width:${pct}%"></div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ── Render helpers ─────────────────────────────────────────────────────────
-  _renderClock() {
-    const { display, ampm, date } = this._time;
-    const moon = moonPhaseEmoji();
-    return html`
-      <div class="card">
-        <div class="card-label">Now</div>
-        <div class="clock-body">
-          <div>
-            <div class="clock-time">${display}</div>
-            <div class="clock-date">${date}</div>
-          </div>
-          <div class="clock-moon">${moon}</div>
-        </div>
-        ${this._quote ? html`
-          <div class="clock-quote">
-            <div class="clock-quote-text">"${this._quote.quote}"</div>
-            <div class="clock-quote-source">— ${this._quote.source}</div>
-          </div>
-        ` : ''}
-      </div>
-    `;
-  }
-
-  _renderWeather() {
-    if (!this._weather && this._weatherErr) return html`<div class="card"><div class="card-label">Weather</div><div class="muted">Unavailable: ${this._weatherErr}</div></div>`;
-    if (!this._weather)   return html`<div class="card"><div class="card-label">Weather</div><div class="muted">Loading…</div></div>`;
-    const { temp, condText, code, hi, lo, hours, curHour, upcoming } = this._weather;
-    const icon      = wapiEmoji(code);
-    const narrative = this._narrative ?? weatherNarrative(condText, temp, hi, lo);
-    return html`
-      <div class="card">
-        <div class="card-label">Weather · Koolwijk</div>
-        <div class="weather-top">
-          <div class="weather-main">
-            <div class="weather-icon">${icon}</div>
-            <div class="weather-right">
-              <div class="weather-top-row">
-                <div class="weather-temp">${temp}°</div>
-                <div class="weather-meta">
-                  <div class="weather-condition">${condText}</div>
-                  <div class="weather-hl">H <span>${hi}°</span> · L <span>${lo}°</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="weather-forecast">
-            ${upcoming.map(d => html`
-              <div class="forecast-day">
-                <span class="forecast-label">${d.label}</span>
-                <span class="forecast-icon">${wapiEmoji(d.code)}</span>
-                <span class="forecast-temps">${d.hi}° <span class="forecast-lo">${d.lo}°</span></span>
-              </div>
-            `)}
-          </div>
-        </div>
-        <div class="weather-narrative">${narrative}</div>
-        <div class="hourly-row">
-          ${hours.map(h => {
-            const hIcon = wapiEmoji(h.code);
-            const lbl = fmtHourLabel(h.hour, curHour);
-            return html`
-              <div class="hour-item">
-                <div class="hour-label ${h.hour === curHour ? 'now' : ''}">${lbl}</div>
-                <div class="hour-icon">${hIcon}</div>
-                <div class="hour-temp">${h.temp}°</div>
-              </div>
-            `;
-          })}
-        </div>
+        <div class="baby-bar"><div class="baby-bar-fill" style="width:${pct}%"></div></div>
       </div>
     `;
   }
 
   _renderTrash() {
-    if (!this._trash.length) return html`<div class="card"><div class="card-label">Trash</div><div class="muted">No data</div></div>`;
-    const [next, ...rest] = this._trash;
-    const meta  = WASTE_META[next.waste_type] ?? { label: next.waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
-    const days  = daysUntil(next.date);
-    const pill  = days === 0 ? ['Today',        'trash-pill trash-today']
-                : days === 1 ? ['Tomorrow',     'trash-pill trash-tomorrow']
-                :              [`in ${days}d`,  'trash-pill trash-later'];
-
-    const tt = this._trashTooltip;
-    const ttDaysLabel = tt
-      ? tt.days === 0 ? 'Today'
-      : tt.days === 1 ? 'Tomorrow'
-      : `in ${tt.days} days`
-      : '';
-
-    return html`
-      <div class="card trash-card-wrap">
+    if (!this._trash.length) return html`
+      <div class="card compact">
         <div class="card-label">Trash</div>
-        <div class="trash-next">
-          <div class="trash-badge" style="background:${meta.bg};color:${meta.color}"
-               @click=${() => this._trashTooltip = { waste_type: next.waste_type, date: next.date, days }}>${meta.icon}</div>
-          <div class="trash-info">
-            <div class="trash-type">${meta.label}</div>
-            <div class="trash-date">${fmtDate(next.date)}</div>
-          </div>
-          <span class="${pill[1]}">${pill[0]}</span>
-        </div>
-        ${rest.length ? html`
-          <div class="trash-upcoming-row">
-            ${rest.map(r => {
-              const m = WASTE_META[r.waste_type] ?? { label: r.waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
-              const d = daysUntil(r.date);
-              return html`
-                <div class="trash-chip" style="background:${m.bg};color:${m.color}"
-                     @click=${() => this._trashTooltip = { waste_type: r.waste_type, date: r.date, days: d }}>
-                  <span class="trash-chip-icon">${m.icon}</span>${m.label}
-                </div>
-              `;
-            })}
-          </div>
-        ` : ''}
-        ${tt ? html`
-          <div class="trash-tooltip-overlay" @click=${() => this._trashTooltip = null}>
-            <div class="trash-tooltip" @click=${e => e.stopPropagation()}>
-              <div class="trash-tooltip-icon" style="color:${(WASTE_META[tt.waste_type] ?? {}).color ?? '#6b7280'}">
-                ${(WASTE_META[tt.waste_type] ?? { icon: '?' }).icon}
-              </div>
-              <div class="trash-tooltip-label">${(WASTE_META[tt.waste_type] ?? { label: tt.waste_type }).label}</div>
-              <div class="trash-tooltip-days">${ttDaysLabel}</div>
-              <div class="trash-tooltip-date">${fmtDateLong(tt.date)}</div>
-            </div>
-          </div>
-        ` : ''}
+        <div class="muted">No upcoming pickups</div>
       </div>
     `;
-  }
-
-  _renderEvents() {
-    if (!this._authed) return html`
-      <div class="card">
-        <div class="card-label">Calendar</div>
-        <div class="auth-prompt">
-          <div class="auth-icon">📅</div>
-          <div class="auth-label">Loading calendar…</div>
-        </div>
-      </div>
-    `;
-    if (this._eventsErr) return html`<div class="card"><div class="card-label">Calendar</div><div class="muted">Error: ${this._eventsErr}</div></div>`;
-    if (!this._events.length) return html`<div class="card"><div class="card-label">Calendar</div><div class="muted">No upcoming events</div></div>`;
-
+    const [next, ...rest] = this._trash;
+    const meta = WASTE_META[next.waste_type] ?? { label: next.waste_type, icon: '?' };
+    const days = daysUntil(next.date);
+    const badge = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`;
+    const dateStr = new Date(next.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     return html`
-      <div class="card">
-        <div class="card-label">Upcoming</div>
-        <div class="events-list">
-          ${this._events.map(ev => {
-            const today = isToday(ev);
-            const time  = evTime(ev);
-            const dateLabel = today ? 'Today' : new Date(ev.start?.dateTime ?? ev.start?.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      <div class="card compact">
+        <div class="card-label">Trash</div>
+        <div class="trash-top">
+          <div class="trash-title">${meta.label}</div>
+          <div class="trash-badge">${badge}</div>
+        </div>
+        <div class="trash-date">${dateStr}</div>
+        <div class="trash-chips">
+          ${rest.slice(0, 3).map(r => {
+            const m = WASTE_META[r.waste_type] ?? { label: r.waste_type, icon: '?', chipBg: '#eee', chipColor: '#444', chipBorder: '#ccc' };
             return html`
-              <div class="event-item">
-                <div class="event-dot" style="background:${ev._calColor}"></div>
-                <div class="event-body">
-                  <div class="event-title">${ev.summary ?? '(no title)'}</div>
-                  <div class="event-meta">${time}${ev.location ? ` · ${ev.location}` : ''}</div>
-                </div>
-                <div class="event-day-badge ${today ? '' : 'upcoming'}">${dateLabel}</div>
+              <div class="trash-chip" style="background:${m.chipBg};color:${m.chipColor};border-color:${m.chipBorder}">
+                ${m.icon} ${m.label}
               </div>
             `;
           })}
@@ -1374,57 +1043,80 @@ export class HomeToday extends LitElement {
     `;
   }
 
-  _renderTodos() {
+  _renderUpcoming() {
+    const upcoming = this._events
+      .filter(ev => ev.start?.dateTime)
+      .slice(0, 4);
+
+    if (!upcoming.length) return html`
+      <div class="card compact">
+        <div class="card-label">Upcoming</div>
+        <div class="muted">No upcoming events</div>
+      </div>
+    `;
     return html`
-      <div class="todos-panel">
-        ${TODO_PEOPLE.map(person => {
-          const color = this._todoColors[person.key] ?? person.defaultColor;
-          const tasks = this._todos[person.key] ?? [];
-          return html`
-            <div class="card todo-lane">
-              <div class="todo-lane-header">
-                <div class="todo-lane-avatar" style="background:${color}">${person.initial}</div>
-                <div class="todo-lane-name">${person.name}</div>
+      <div class="card compact">
+        <div class="card-label">Upcoming</div>
+        <div class="upcoming-list">
+          ${upcoming.map(ev => {
+            const d = new Date(ev.start.dateTime);
+            const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            const dateStr = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+            return html`
+              <div class="upcoming-row">
+                <div class="upcoming-dot" style="background:${ev._calColor ?? '#6b7280'}"></div>
+                <div class="upcoming-info">
+                  <div class="upcoming-name">${ev.summary ?? '(no title)'}</div>
+                  <div class="upcoming-time">${timeStr}</div>
+                </div>
+                <div class="upcoming-when">${dateStr}</div>
               </div>
-              ${!tasks.length
-                ? html`<div class="todo-empty">All clear ✓</div>`
-                : tasks.map(task => html`
-                  <div class="todo-item ${this._pressing.has(task.id) ? 'pressing' : ''} ${this._dismissing.has(task.id) ? 'dismissing' : ''}"
-                       style="--press-color: ${color}33"
-                       @pointerdown=${(e) => this._onPressStart(task, person.key, e)}
-                       @pointerup=${() => this._onPressEnd(task.id)}
-                       @pointercancel=${() => this._onPressEnd(task.id)}
-                       @pointermove=${(e) => this._onPressMove(task.id, e)}
-                       @contextmenu=${(e) => e.preventDefault()}>
-                    <div class="todo-emoji" style="background:${color}18"><img src="${twemojiUrl(task.emoji)}" alt="${task.emoji ?? '📝'}" /></div>
-                    <div class="todo-name">${task.name}</div>
-                    ${task.stars ? html`<div class="todo-stars">${'♥'.repeat(task.stars)}</div>` : ''}
-                  </div>
-                `)
-              }
-            </div>
-          `;
-        })}
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  _renderTodoRings() {
+    return html`
+      <div class="card">
+        <div class="card-label">To Do</div>
+        <div class="chores-row">
+          ${TODO_PEOPLE.map(p => {
+            const color = localStorage.getItem(p.lsKey) || this._todoColors[p.key] || p.defaultColor;
+            const all   = this._allTodos.filter(t => t.person === p.key);
+            const total = all.length;
+            const done  = all.filter(t => t.done).length;
+            const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+            return html`
+              <div class="chore-person">
+                <div class="chore-ring" style="--clr:${color};--pct:${pct}%">
+                  <div class="chore-inner">${done}/${total}</div>
+                </div>
+                <div class="chore-name">${p.name}</div>
+              </div>
+            `;
+          })}
+        </div>
       </div>
     `;
   }
 
   render() {
     return html`
-      <div class="page-grid">
-        <div class="left-col">
-          <div class="top-row">
-            ${this._renderClock()}
-            ${this._renderWeather()}
-          </div>
-          ${this._renderNextUp()}
-          ${this._renderTodos()}
+      <div class="col-main">
+        <div class="top-row">
+          ${this._renderClock()}
+          ${this._renderWeather()}
         </div>
-        <div class="right-col">
-          ${this._renderBaby()}
-          ${this._renderTrash()}
-          ${this._renderEvents()}
-        </div>
+        ${this._renderCalendar()}
+      </div>
+      <div class="col-right">
+        ${this._renderBaby()}
+        ${this._renderTrash()}
+        ${this._renderUpcoming()}
+        ${this._renderTodoRings()}
       </div>
     `;
   }

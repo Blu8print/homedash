@@ -2,6 +2,9 @@
 
 A family home dashboard inspired by https://home-dashboard.wesbos.workers.dev/
 
+The dashboard is hosted on cloudflare
+When the user says push to production he means push to git so cloudflare will build
+
 ## Stack
 
 - **Vite** — build tool / dev server (port 3000)
