@@ -80,7 +80,7 @@ export class HomeBaby extends LitElement {
   async _loadBabyInfo() {
     const { weeks, dayOfWeek } = calcBaby();
     const today    = new Date().toISOString().slice(0, 10);
-    const cacheKey = `baby-ai-${today}`;
+    const cacheKey = `baby-ai-v3-${today}`;
 
     // Purge stale keys from previous days
     Object.keys(localStorage)
@@ -98,7 +98,18 @@ export class HomeBaby extends LitElement {
         body: JSON.stringify({
           model: 'anthropic/claude-haiku-4-5',
           max_tokens: 300,
-          messages: [{ role: 'user', content: `We are ${weeks} weeks and ${dayOfWeek} days pregnant with a girl. Write 3 short paragraphs (no headings, no bullet points) covering: (1) how big she is and what she looks like (use metric units — cm and grams), (2) what she can perceive — senses, movement, sounds, (3) what's happening developmentally this week. Warm, personal tone addressed to both parents. Be concise — max 120 words total.` }],
+          messages: [{ role: 'user', content: `You write a daily note for Sebastiaan and Maria, expecting their daughter.
+Today: ${weeks} weeks and ${dayOfWeek} days pregnant. She is about the size of a ${BABY_SIZE[weeks]?.name ?? 'pumpkin'} (${BABY_SIZE[weeks]?.size ?? '51 cm'}).
+
+Write 3–4 warm, flowing sentences (max 100 words) about what is happening with her this week: one real developmental milestone, plus how she moves, senses or reacts.
+
+Make it feel like their life:
+- Address them as "you two" or by name (Sebastiaan, Maria); never "your wife" or "mom/dad-to-be".
+- When it fits her development, link it to their home: Maria's hands and her natural oils and herbs, Diuna padding through the house, Bilbo in the garden, quiet evenings in Koolwijk.
+- Use at most one such personal detail per note, and vary it day to day.
+- Tone: gentle, grounded, a little soulful; no clichés or exclamation marks.
+
+Rules: medically accurate for this exact week, metric units only, no advice, no worries or risks, no headings, lists or emoji. Plain text only.` }],
         }),
       });
       if (res.ok) {
@@ -568,15 +579,9 @@ export class HomeBaby extends LitElement {
     const nextMilestone = MILESTONES.find(m => m.week > weeks);
     const daysToNext    = nextMilestone ? (nextMilestone.week - weeks) * 7 - dayOfWeek : null;
 
-    // Split AI text into up to 3 paragraphs for the highlight blocks
     const paras = this._babyInfo
       ? this._babyInfo.split(/\n+/).map(p => p.trim()).filter(Boolean)
       : [];
-    const BLOCK_META = [
-      { icon: '📏', title: 'Growth & Proportions' },
-      { icon: '👂', title: 'Senses & Movement' },
-      { icon: '🫁', title: 'Development' },
-    ];
 
     return html`
       <!-- Page header -->
@@ -688,20 +693,8 @@ export class HomeBaby extends LitElement {
                 <div class="dot"></div><div class="dot"></div><div class="dot"></div>
                 <span>Loading…</span>
               </div>
-            ` : paras.length >= 2 ? html`
-              <div class="dev-blocks">
-                ${BLOCK_META.map((meta, i) => paras[i] ? html`
-                  <div class="dev-block">
-                    <div class="dev-block-icon">${meta.icon}</div>
-                    <div>
-                      <div class="dev-block-title">${meta.title}</div>
-                      <p class="dev-block-text">${paras[i]}</p>
-                    </div>
-                  </div>
-                ` : '')}
-              </div>
-            ` : paras.length === 1 ? html`
-              <div class="dev-plain"><p>${paras[0]}</p></div>
+            ` : paras.length ? html`
+              <div class="dev-plain">${paras.map(p => html`<p>${p}</p>`)}</div>
             ` : html`
               <div class="loading"><span>Could not load — check console</span></div>
             `}
