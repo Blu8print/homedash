@@ -819,14 +819,11 @@ export class HomeToday extends LitElement {
 
   // ── Calendar ───────────────────────────────────────────────────────────────
   _getWeekDays() {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const dow = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + this._weekOffset * 7);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
+      const d = new Date(today);
+      d.setDate(today.getDate() + i + this._weekOffset * 7);
       return d;
     });
   }
@@ -943,7 +940,9 @@ export class HomeToday extends LitElement {
     const monthStr = sameMonth
       ? firstDay.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
       : `${firstDay.toLocaleDateString('en-GB', { month: 'short' })} – ${lastDay.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
-    const weekNum = getISOWeek(firstDay);
+    const weekStart = getISOWeek(firstDay);
+    const weekEnd   = getISOWeek(lastDay);
+    const weekNum   = weekStart === weekEnd ? String(weekStart) : `${weekStart} – ${weekEnd}`;
 
     return html`
       <div class="card cal-card">
