@@ -156,6 +156,8 @@ export class HomeToday extends LitElement {
 
     .weather-card {
       flex: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     .col-right {
@@ -286,6 +288,58 @@ export class HomeToday extends LitElement {
       color: var(--color-text-muted);
       margin-bottom: 8px;
       line-height: 1.35;
+    }
+
+    .weather-body {
+      display: flex;
+      gap: 14px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .weather-current {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .weather-forecast {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: center;
+      border-left: 1px solid var(--color-border);
+      padding-left: 14px;
+      flex-shrink: 0;
+    }
+
+    .forecast-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .forecast-day {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      width: 26px;
+    }
+
+    .forecast-icon { font-size: 1rem; line-height: 1; }
+
+    .forecast-hi {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    .forecast-lo {
+      font-size: 0.65rem;
+      color: var(--color-text-muted);
     }
 
     .hourly-row {
@@ -712,6 +766,15 @@ export class HomeToday extends LitElement {
           .slice(0, needed)
           .map(h => ({ hour: new Date(h.time).getHours(), temp: Math.round(h.temp_c), code: h.condition.code }))
       : [];
+    const forecastDays = data.forecast.forecastday.slice(1).map(ffd => {
+      const d = new Date(ffd.date + 'T00:00:00');
+      return {
+        dayName: d.toLocaleDateString('en-GB', { weekday: 'short' }),
+        hi:  Math.round(ffd.day.maxtemp_c),
+        lo:  Math.round(ffd.day.mintemp_c),
+        code: ffd.day.condition.code,
+      };
+    });
     return {
       temp:     Math.round(data.current.temp_c),
       condText: data.current.condition.text,
@@ -719,6 +782,7 @@ export class HomeToday extends LitElement {
       hi:       Math.round(fd.day.maxtemp_c),
       lo:       Math.round(fd.day.mintemp_c),
       hours:    [...todayHours, ...tomorrowHours],
+      forecastDays,
       curHour,
     };
   }
@@ -731,7 +795,7 @@ export class HomeToday extends LitElement {
     } catch {}
 
     const fetchFresh = async () => {
-      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=2&aqi=no&alerts=no`;
+      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=3&aqi=no&alerts=no`;
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -895,28 +959,44 @@ export class HomeToday extends LitElement {
         <div class="muted">Loading…</div>
       </div>
     `;
-    const { temp, condText, code, hi, lo, hours, curHour } = this._weather;
+    const { temp, condText, code, hi, lo, hours, forecastDays, curHour } = this._weather;
     const narrative = this._narrative ?? weatherNarrative(condText, temp, hi, lo);
     return html`
       <div class="card weather-card">
         <div class="card-label">Weather · Koolwijk</div>
-        <div class="weather-top">
-          <div class="weather-icon">${wapiEmoji(code)}</div>
-          <div class="weather-temp">${temp}°</div>
-          <div class="weather-right">
-            <div class="weather-cond">${condText}</div>
-            <div class="weather-hl">H ${hi}° · L ${lo}°</div>
-          </div>
-        </div>
-        <div class="weather-narrative">${narrative}</div>
-        <div class="hourly-row">
-          ${hours.slice(0, 12).map(h => html`
-            <div class="hour-item">
-              <div class="hour-label">${h.hour === curHour ? 'Now' : String(h.hour)}</div>
-              <div class="hour-icon">${wapiEmoji(h.code)}</div>
-              <div class="hour-temp">${h.temp}°</div>
+        <div class="weather-body">
+          <div class="weather-current">
+            <div class="weather-top">
+              <div class="weather-icon">${wapiEmoji(code)}</div>
+              <div class="weather-temp">${temp}°</div>
+              <div class="weather-right">
+                <div class="weather-cond">${condText}</div>
+                <div class="weather-hl">H ${hi}° · L ${lo}°</div>
+              </div>
             </div>
-          `)}
+            <div class="weather-narrative">${narrative}</div>
+            <div class="hourly-row">
+              ${hours.slice(0, 12).map(h => html`
+                <div class="hour-item">
+                  <div class="hour-label">${h.hour === curHour ? 'Now' : String(h.hour)}</div>
+                  <div class="hour-icon">${wapiEmoji(h.code)}</div>
+                  <div class="hour-temp">${h.temp}°</div>
+                </div>
+              `)}
+            </div>
+          </div>
+          ${forecastDays?.length ? html`
+            <div class="weather-forecast">
+              ${forecastDays.map(d => html`
+                <div class="forecast-row">
+                  <div class="forecast-day">${d.dayName}</div>
+                  <div class="forecast-icon">${wapiEmoji(d.code)}</div>
+                  <div class="forecast-hi">${d.hi}°</div>
+                  <div class="forecast-lo">/ ${d.lo}°</div>
+                </div>
+              `)}
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
