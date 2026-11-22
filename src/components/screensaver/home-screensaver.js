@@ -712,7 +712,7 @@ export class HomeScreensaver extends LitElement {
     const today    = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const [todosRes, shoppingRes, trashRes] = await Promise.all([
-      supabase.from('todos').select('person,done'),
+      supabase.from('todos').select('person,done,bucket').eq('bucket', 'today'),
       supabase.from('shopping_items').select('*', { count: 'exact', head: true }).eq('done', false),
       supabase.from('trash_collection').select('date,waste_type').gte('date', today).lte('date', tomorrow).order('date'),
     ]);
