@@ -712,7 +712,7 @@ export class HomeScreensaver extends LitElement {
     const today    = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const [todosRes, shoppingRes, trashRes] = await Promise.all([
-      supabase.from('todos').select('person').eq('done', false),
+      supabase.from('todos').select('person,done'),
       supabase.from('shopping_items').select('*', { count: 'exact', head: true }).eq('done', false),
       supabase.from('trash_collection').select('date,waste_type').gte('date', today).lte('date', tomorrow).order('date'),
     ]);
@@ -813,12 +813,14 @@ export class HomeScreensaver extends LitElement {
       const trashItems  = trashToday.length ? trashToday : trashTomorrow;
       const trashLabel  = trashToday.length ? 'tonight' : 'tomorrow night';
 
-      // Chore rings — show remaining (undone) task count; full ring when tasks remain
+      // Chore rings — show done/total progress arc
       const choreData = DARK_PEOPLE.map(p => {
-        const remaining = this._darkTodos.filter(t => t.person === p.key).length;
-        const pct       = remaining > 0 ? 100 : 0;
-        const color     = localStorage.getItem(p.lsKey) || p.defaultColor;
-        return { ...p, remaining, pct, color };
+        const all   = this._darkTodos.filter(t => t.person === p.key);
+        const total = all.length;
+        const done  = all.filter(t => t.done).length;
+        const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+        const color = localStorage.getItem(p.lsKey) || p.defaultColor;
+        return { ...p, done, total, pct, color };
       });
 
       // Quote (cycles daily)
@@ -858,7 +860,7 @@ export class HomeScreensaver extends LitElement {
                   ${choreData.map(p => html`
                     <div class="chore-person">
                       <div class="chore-ring" style="--clr:${p.color};--pct:${p.pct}%">
-                        <div class="chore-inner">${p.remaining}</div>
+                        <div class="chore-inner">${p.done}/${p.total}</div>
                       </div>
                       <div class="chore-name">${p.name}</div>
                     </div>
