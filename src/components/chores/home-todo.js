@@ -1749,9 +1749,9 @@ export class HomeTodo extends LitElement {
     const totalHearts = this._weekHeartsFor(person.key);
     const sessionCount = this._sessionDone[person.key] ?? 0;
 
-    // Filter to current tab's tasks for this person
+    // Filter to current tab's tasks for this person (done tasks live in Done tab only)
     let tasks = this._tasks
-      .filter(t => t.person === person.key && (t.bucket ?? 'today') === tab);
+      .filter(t => t.person === person.key && (t.bucket ?? 'today') === tab && !t.done);
 
     // Sort based on tab
     if (tab === 'today') {
