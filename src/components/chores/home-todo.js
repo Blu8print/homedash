@@ -1092,13 +1092,13 @@ export class HomeTodo extends LitElement {
     this._editEmoji        = '📝';
     this._editStars        = 0;
     this._editRecurrence   = 'none';
-    this._editBucket       = 'today';
+    this._editBucket       = 'someday';
     this._editEffort       = 'medium';
     this._editWhenWhere    = '';
     this._dropTarget       = null;
     this._weekScores       = {};
     this._today            = formatToday();
-    this._activeTab        = 'today';
+    this._activeTab        = 'someday';
     this._reviewMode       = false;
     this._reviewQueue      = [];
     this._reviewIdx        = 0;
@@ -1509,9 +1509,9 @@ export class HomeTodo extends LitElement {
 
   _renderTabBar() {
     const tabs = [
-      { key: 'today',   label: 'Today' },
-      { key: 'backlog', label: 'Backlog' },
       { key: 'someday', label: 'Someday' },
+      { key: 'backlog', label: 'Backlog' },
+      { key: 'today',   label: 'Today' },
     ];
     const counts = {
       today:   this._tasks.filter(t => (t.bucket ?? 'today') === 'today'   && !t.done).length,
@@ -1776,9 +1776,9 @@ export class HomeTodo extends LitElement {
 
   _renderBucketPicker(value, onChange) {
     const buckets = [
-      { key: 'today',   label: 'Today' },
-      { key: 'backlog', label: 'Backlog' },
       { key: 'someday', label: 'Someday' },
+      { key: 'backlog', label: 'Backlog' },
+      { key: 'today',   label: 'Today' },
     ];
     return html`
       <div>
