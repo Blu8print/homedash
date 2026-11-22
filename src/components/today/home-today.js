@@ -706,7 +706,7 @@ export class HomeToday extends LitElement {
     const todayHours = fd.hour
       .map(h => ({ hour: new Date(h.time).getHours(), temp: Math.round(h.temp_c), code: h.condition.code }))
       .filter(h => h.hour >= curHour);
-    const needed = 8 - todayHours.length;
+    const needed = 12 - todayHours.length;
     const tomorrowHours = needed > 0 && data.forecast.forecastday[1]
       ? data.forecast.forecastday[1].hour
           .slice(0, needed)
@@ -910,7 +910,7 @@ export class HomeToday extends LitElement {
         </div>
         <div class="weather-narrative">${narrative}</div>
         <div class="hourly-row">
-          ${hours.slice(0, 7).map(h => html`
+          ${hours.slice(0, 12).map(h => html`
             <div class="hour-item">
               <div class="hour-label">${h.hour === curHour ? 'Now' : String(h.hour)}</div>
               <div class="hour-icon">${wapiEmoji(h.code)}</div>
