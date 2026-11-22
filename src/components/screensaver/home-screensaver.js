@@ -3,6 +3,8 @@ import { keyed } from 'lit/directives/keyed.js';
 import { supabase } from '../../lib/supabase.js';
 import { getSlideSecs } from '../home-settings.js';
 
+const WEATHER_KEY = import.meta.env.VITE_WEATHER_API_KEY;
+
 const BUCKET_URL = 'https://unwclrqvrmnaynsoyhqc.supabase.co/storage/v1/object/public/screensaver';
 const PHOTO_LIST_CACHE_KEY = 'screensaver_photo_list';
 const PHOTO_LIST_TTL = 24 * 60 * 60 * 1000;
@@ -32,8 +34,8 @@ function wapiEmoji(code) {
 }
 
 const DARK_PEOPLE = [
-  { key: 'mariaelena', name: 'Maria',      lsKey: 'lane-color-mariaelena', defaultColor: '#EB337F' },
-  { key: 'sebastiaan', name: 'Sebastiaan', lsKey: 'lane-color-sebastiaan', defaultColor: '#3A7CF8' },
+  { key: 'mariaelena', name: 'Maria',      lsKey: 'lane-color-mariaelena', defaultColor: '#851869' },
+  { key: 'sebastiaan', name: 'Sebastiaan', lsKey: 'lane-color-sebastiaan', defaultColor: '#137c15' },
   { key: 'anyone',     name: 'Anyone',     lsKey: 'lane-color-anyone',     defaultColor: '#f59e0b' },
 ];
 
@@ -87,6 +89,7 @@ export class HomeScreensaver extends LitElement {
     _darkTodos:         { state: true },
     _darkShoppingCount: { state: true },
     _darkTrash:         { state: true },
+    _weather:           { state: true },
   };
 
   _blobCache = new Map();
@@ -484,7 +487,7 @@ export class HomeScreensaver extends LitElement {
       width: 72px;
       height: 72px;
       border-radius: 50%;
-      background: conic-gradient(var(--clr) var(--pct), rgba(255,255,255,0.08) var(--pct));
+      background: conic-gradient(var(--clr) var(--pct), rgba(255,255,255,0.18) var(--pct));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -550,14 +553,17 @@ export class HomeScreensaver extends LitElement {
     this._darkTodos         = [];
     this._darkShoppingCount = 0;
     this._darkTrash         = [];
+    this._weather           = null;
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._loadPhotos();
     this._loadDarkData();
+    this._fetchWeather();
     this._clockTimer = setInterval(() => { this._time = this._nowTime(); }, 1000);
     this._darkRefreshTimer = setInterval(() => this._loadDarkData(), 5 * 60 * 1000);
+    this._weatherTimer = setInterval(() => this._fetchWeather(), 30 * 60 * 1000);
   }
 
   disconnectedCallback() {
@@ -565,6 +571,7 @@ export class HomeScreensaver extends LitElement {
     clearInterval(this._clockTimer);
     clearInterval(this._slideTimer);
     clearInterval(this._darkRefreshTimer);
+    clearInterval(this._weatherTimer);
     for (const url of this._blobCache.values()) URL.revokeObjectURL(url);
     this._blobCache.clear();
   }
@@ -632,12 +639,40 @@ export class HomeScreensaver extends LitElement {
     };
   }
 
+  async _fetchWeather() {
+    // Load from cache immediately so something shows right away
+    if (!this._weather) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('weather_cache'));
+        if (cached?.data) this._weather = this._parseWeather(cached.data);
+      } catch {}
+    }
+    if (!WEATHER_KEY) return;
+    try {
+      const res = await fetch(
+        `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=1&aqi=no&alerts=no`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      localStorage.setItem('weather_cache', JSON.stringify({ ts: Date.now(), data }));
+      this._weather = this._parseWeather(data);
+    } catch {}
+  }
+
+  _parseWeather(data) {
+    return {
+      temp: Math.round(data.current.temp_c),
+      cond: data.current.condition.text,
+      code: data.current.condition.code,
+    };
+  }
+
   _getWeather() {
+    if (this._weather) return this._weather;
     try {
       const cached = JSON.parse(localStorage.getItem('weather_cache'));
       if (!cached?.data) return null;
-      const d = cached.data;
-      return { temp: Math.round(d.current.temp_c), cond: d.current.condition.text, code: d.current.condition.code };
+      return this._parseWeather(cached.data);
     } catch { return null; }
   }
 
@@ -677,7 +712,7 @@ export class HomeScreensaver extends LitElement {
     const today    = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const [todosRes, shoppingRes, trashRes] = await Promise.all([
-      supabase.from('todos').select('person,done'),
+      supabase.from('todos').select('person').eq('done', false),
       supabase.from('shopping_items').select('*', { count: 'exact', head: true }).eq('done', false),
       supabase.from('trash_collection').select('date,waste_type').gte('date', today).lte('date', tomorrow).order('date'),
     ]);
@@ -778,14 +813,12 @@ export class HomeScreensaver extends LitElement {
       const trashItems  = trashToday.length ? trashToday : trashTomorrow;
       const trashLabel  = trashToday.length ? 'tonight' : 'tomorrow night';
 
-      // Chore rings
+      // Chore rings — show remaining (undone) task count; full ring when tasks remain
       const choreData = DARK_PEOPLE.map(p => {
-        const tasks = this._darkTodos.filter(t => t.person === p.key);
-        const done  = tasks.filter(t => t.done).length;
-        const total = tasks.length;
-        const pct   = total === 0 ? 0 : Math.round((done / total) * 100);
-        const color = localStorage.getItem(p.lsKey) || p.defaultColor;
-        return { ...p, done, total, pct, color };
+        const remaining = this._darkTodos.filter(t => t.person === p.key).length;
+        const pct       = remaining > 0 ? 100 : 0;
+        const color     = localStorage.getItem(p.lsKey) || p.defaultColor;
+        return { ...p, remaining, pct, color };
       });
 
       // Quote (cycles daily)
@@ -825,7 +858,7 @@ export class HomeScreensaver extends LitElement {
                   ${choreData.map(p => html`
                     <div class="chore-person">
                       <div class="chore-ring" style="--clr:${p.color};--pct:${p.pct}%">
-                        <div class="chore-inner">${p.done}/${p.total}</div>
+                        <div class="chore-inner">${p.remaining}</div>
                       </div>
                       <div class="chore-name">${p.name}</div>
                     </div>

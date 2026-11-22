@@ -98,7 +98,7 @@ export class HomeBaby extends LitElement {
         body: JSON.stringify({
           model: 'anthropic/claude-haiku-4-5',
           max_tokens: 300,
-          messages: [{ role: 'user', content: `My wife is ${weeks} weeks and ${dayOfWeek} days pregnant with a girl. Write 3 short paragraphs (no headings, no bullet points) covering: (1) how big she is and what she looks like, (2) what she can perceive — senses, movement, sounds, (3) what's happening developmentally this week. Warm, personal tone. Be concise — max 120 words total.` }],
+          messages: [{ role: 'user', content: `We are ${weeks} weeks and ${dayOfWeek} days pregnant with a girl. Write 3 short paragraphs (no headings, no bullet points) covering: (1) how big she is and what she looks like (use metric units — cm and grams), (2) what she can perceive — senses, movement, sounds, (3) what's happening developmentally this week. Warm, personal tone addressed to both parents. Be concise — max 120 words total.` }],
         }),
       });
       if (res.ok) {
@@ -131,321 +131,612 @@ export class HomeBaby extends LitElement {
       min-height: 0;
       overflow-y: auto;
       display: block;
-      padding: 28px 32px;
-      font-family: var(--font-sans);
+      background: #FFF8F8;
+      font-family: var(--font-sans, system-ui);
       box-sizing: border-box;
+      color: #21191C;
     }
 
+    * { box-sizing: border-box; }
+
+    /* ── Page header ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid #D8C1C7;
+      background: #fff;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #FFECF0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #21191C;
+      line-height: 1.1;
+    }
+    .header-sub {
+      font-size: 0.75rem;
+      color: #534247;
+      line-height: 1.2;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .badge-girl {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: #FFECF0;
+      border: 1px solid #FFD9E4;
+      color: #8C3B5E;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .header-due {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.78rem;
+      color: #534247;
+    }
+
+    /* ── Main content ── */
+    .content {
+      padding: 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── Cards ── */
     .card {
-      background: var(--color-card);
-      border-radius: var(--radius);
-      padding: 20px 22px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-      box-sizing: border-box;
+      background: #fff;
+      border: 1px solid #D8C1C7;
+      border-radius: 12px;
+      padding: 18px 20px;
     }
     .card-label {
-      font-size: 0.62rem;
+      font-size: 0.6rem;
       font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--color-text-muted);
-      margin-bottom: 10px;
+      color: #534247;
+      margin-bottom: 8px;
     }
 
-    /* ── Hero grid ── */
-    .hero-grid {
+    /* ── Metrics row ── */
+    .metrics-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: 14px;
     }
-    .hero-number {
-      font-family: var(--font-serif);
-      font-size: 3.6rem;
-      line-height: 1;
-      color: var(--color-text);
-      letter-spacing: -0.02em;
+    .metric-card {
+      background: #fff;
+      border: 1px solid #D8C1C7;
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
-    .hero-unit {
-      font-size: 1rem;
-      color: var(--color-text-muted);
-      margin-top: 4px;
-    }
-    .hero-sub {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      margin-top: 4px;
-    }
-    .hero-accent { color: #ec4899; }
-
-    /* ── Progress card ── */
-    .progress-card {
-      margin-bottom: 16px;
-    }
-    .progress-track {
+    .metric-header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
     }
-    .progress-bar-wrap {
-      flex: 1;
+    .trimester-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: #FFECF0;
+      border: 1px solid #FFD9E4;
+      color: #8C3B5E;
+      font-size: 0.65rem;
+      font-weight: 700;
+    }
+    .metric-big {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 3rem;
+      line-height: 1;
+      color: #21191C;
+      letter-spacing: -0.02em;
+    }
+    .metric-big-days {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 3rem;
+      line-height: 1;
+      color: #8C3B5E;
+      letter-spacing: -0.02em;
+    }
+    .metric-accent {
+      font-size: 1.3rem;
+      color: #8C3B5E;
+      margin-left: 3px;
+    }
+    .metric-sub {
+      font-size: 0.78rem;
+      color: #534247;
+    }
+    .metric-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid #D8C1C7;
+    }
+    .metric-footer-label { font-size: 0.72rem; color: #534247; }
+    .metric-footer-value { font-size: 0.72rem; font-weight: 700; color: #8C3B5E; }
+    .metric-footer-mono  { font-size: 0.72rem; font-weight: 600; color: #534247; font-variant-numeric: tabular-nums; }
+    .size-emoji-lg {
+      font-size: 2.4rem;
+      line-height: 1;
+    }
+    .size-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .size-name-lg {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 1.4rem;
+      color: #21191C;
+      line-height: 1.1;
+    }
+
+    /* ── Progress ── */
+    .progress-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .progress-title {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #534247;
+    }
+    .progress-title-sub {
+      font-size: 0.78rem;
+      color: #534247;
+      margin-top: 2px;
+    }
+    .progress-pct {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #8C3B5E;
+    }
+    .progress-track {
       height: 10px;
-      background: #fce7f3;
       border-radius: 5px;
+      background: #EEDFE2;
       overflow: hidden;
+      margin-bottom: 10px;
     }
-    .progress-bar-fill {
+    .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #f9a8d4, #ec4899);
+      background: #8C3B5E;
       border-radius: 5px;
       transition: width 0.4s ease;
     }
-    .progress-pct {
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: #ec4899;
-      white-space: nowrap;
-    }
     .trimester-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
-      margin-top: 12px;
     }
     .trimester-chip {
-      flex: 1;
-      text-align: center;
-      padding: 5px 8px;
+      padding: 6px 10px;
       border-radius: 8px;
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      background: var(--color-card-alt, #f5f0e8);
-      color: var(--color-text-muted);
+      background: #EEDFE2;
+      color: #534247;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .trimester-chip.done {
+      background: #E8F5E6;
+      color: #2A6323;
     }
     .trimester-chip.active {
-      background: #fce7f3;
-      color: #be185d;
+      background: #FFECF0;
+      border: 1px solid #FFD9E4;
+      color: #8C3B5E;
     }
 
-    /* ── Bottom grid ── */
-    .bottom-grid {
+    /* ── Split layout ── */
+    .split {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
+      grid-template-columns: 7fr 5fr;
+      gap: 14px;
+      align-items: start;
     }
 
-    /* ── Milestones ── */
-    .milestone-list {
+    /* ── Dev card ── */
+    .dev-header {
+      border-bottom: 1px solid #D8C1C7;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .dev-week-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8C3B5E;
+      margin-bottom: 4px;
+    }
+    .dev-title {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 1.35rem;
+      color: #21191C;
+      line-height: 1.2;
+    }
+    .dev-blocks {
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 10px;
+    }
+    .dev-block {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #FFF0F3;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .dev-block-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #D8C1C7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .dev-block-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #21191C;
+      margin-bottom: 4px;
+    }
+    .dev-block-text {
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: #534247;
+      margin: 0;
+    }
+    .dev-plain {
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: #21191C;
+    }
+    .dev-plain p { margin: 0 0 0.6em; }
+    .dev-plain p:last-child { margin-bottom: 0; }
+
+    /* ── Loading dots ── */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #534247;
+      padding: 8px 0;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50%       { opacity: 1; }
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #8C3B5E;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── Milestones ── */
+    .milestones-header {
+      border-bottom: 1px solid #D8C1C7;
+      padding-bottom: 12px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    .milestones-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #534247;
+      margin-bottom: 3px;
+    }
+    .milestones-title {
+      font-family: var(--font-serif, Georgia, serif);
+      font-size: 1.1rem;
+      color: #21191C;
     }
     .milestone-item {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       padding: 10px 0;
-      border-bottom: 1px solid var(--color-border, #e5e7eb);
-      position: relative;
+      border-bottom: 1px solid #EEDFE2;
     }
     .milestone-item:last-child { border-bottom: none; }
-    .milestone-dot {
-      width: 10px;
-      height: 10px;
+    .milestone-item.is-next {
+      background: #FFF0F3;
+      border-radius: 8px;
+      padding: 10px 10px;
+      margin: 0 -10px;
+      border-bottom: none;
+    }
+    .milestone-icon {
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
-      background: #fce7f3;
-      border: 2px solid #f9a8d4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
       flex-shrink: 0;
     }
-    .milestone-dot.done {
-      background: #ec4899;
-      border-color: #ec4899;
-    }
-    .milestone-dot.next {
-      background: #fff;
-      border-color: #ec4899;
-      box-shadow: 0 0 0 3px #fce7f3;
-    }
-    .milestone-body { flex: 1; }
-    .milestone-label {
-      font-size: 0.85rem;
+    .milestone-icon.done     { background: #E8F5E6; color: #2A6323; }
+    .milestone-icon.is-next  { background: #8C3B5E; color: #fff; }
+    .milestone-icon.upcoming { background: #EEDFE2; color: #534247; }
+    .milestone-body { flex: 1; min-width: 0; }
+    .milestone-name {
+      font-size: 0.82rem;
       font-weight: 600;
-      color: var(--color-text);
+      color: #21191C;
     }
-    .milestone-item.done .milestone-label {
-      color: var(--color-text-muted);
+    .milestone-item.done .milestone-name {
+      color: #534247;
       text-decoration: line-through;
     }
-    .milestone-week {
+    .milestone-week-label {
       font-size: 0.68rem;
-      color: var(--color-text-muted);
+      color: #534247;
       margin-top: 1px;
     }
-    .milestone-badge {
-      font-size: 0.62rem;
+    .milestone-week-label.is-next { color: #8C3B5E; }
+    .badge-reached {
+      font-size: 0.6rem;
       font-weight: 700;
       padding: 2px 8px;
       border-radius: 999px;
-      background: #fce7f3;
-      color: #be185d;
+      background: #E8F5E6;
+      color: #2A6323;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
-
-    /* ── Size card ── */
-    .baby-hero-img {
-      display: block;
-      width: 80px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 16px;
-      background: #fce7f3;
-      margin: 0 auto 8px;
+    .badge-next {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #FFECF0;
+      border: 1px solid #FFD9E4;
+      color: #8C3B5E;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
-    .size-emoji {
-      font-size: 4rem;
-      line-height: 1;
-      text-align: center;
-      padding: 16px 0 8px;
+    .badge-weeks {
+      font-size: 0.68rem;
+      color: #534247;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
-    .size-name {
-      font-family: var(--font-serif);
-      font-size: 1.3rem;
-      text-align: center;
-      color: var(--color-text);
-    }
-    .size-length {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-      text-align: center;
-      margin-top: 4px;
-    }
-    .size-desc {
-      font-size: 0.75rem;
-      color: var(--color-text-muted);
-      text-align: center;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid var(--color-border, #e5e7eb);
-      line-height: 1.5;
-    }
-
-    /* ── AI stage info ── */
-    .stage-card {
-      margin-bottom: 16px;
-    }
-    .stage-body {
-      font-size: 0.85rem;
-      line-height: 1.65;
-      color: var(--color-text);
-    }
-    .stage-body p {
-      margin: 0 0 0.75em;
-    }
-    .stage-body p:last-child { margin-bottom: 0; }
-    .stage-loading {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.4; }
-      50%       { opacity: 1;   }
-    }
-    .stage-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #ec4899;
-      animation: pulse 1.2s ease-in-out infinite;
-    }
-    .stage-dot:nth-child(2) { animation-delay: 0.2s; }
-    .stage-dot:nth-child(3) { animation-delay: 0.4s; }
   `;
 
   render() {
     const { daysLeft, weeks, dayOfWeek, pct, trimester } = calcBaby();
-    const size = BABY_SIZE[weeks] ?? BABY_SIZE[40];
+    const size          = BABY_SIZE[weeks] ?? BABY_SIZE[40];
     const nextMilestone = MILESTONES.find(m => m.week > weeks);
+    const daysToNext    = nextMilestone ? (nextMilestone.week - weeks) * 7 - dayOfWeek : null;
+
+    // Split AI text into up to 3 paragraphs for the highlight blocks
+    const paras = this._babyInfo
+      ? this._babyInfo.split(/\n+/).map(p => p.trim()).filter(Boolean)
+      : [];
+    const BLOCK_META = [
+      { icon: '📏', title: 'Growth & Proportions' },
+      { icon: '👂', title: 'Senses & Movement' },
+      { icon: '🫁', title: 'Development' },
+    ];
 
     return html`
-      <!-- Hero stats -->
-      <div class="hero-grid">
-        <div class="card">
-          <div class="card-label">Week</div>
-          <img class="baby-hero-img" src="/baby.svg" alt="Baby" />
-          <div class="hero-number">${weeks}<span style="font-size:1.5rem;margin-left:4px;color:#ec4899">${dayOfWeek > 0 ? `+${dayOfWeek}` : ''}</span></div>
-          <div class="hero-unit">of 40 weeks</div>
-          <div class="hero-sub">Trimester ${trimester}</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Days to go</div>
-          <div class="hero-number hero-accent">${daysLeft}</div>
-          <div class="hero-unit">days remaining</div>
-          ${nextMilestone ? html`<div class="hero-sub">Next: Week ${nextMilestone.week}</div>` : ''}
-        </div>
-        <div class="card">
-          <div class="card-label">Baby is the size of a…</div>
-          <div class="size-emoji">${size.emoji}</div>
-          <div class="size-name">${size.name}</div>
-          <div class="size-length">${size.length ?? size.size}</div>
-        </div>
-      </div>
-
-      <!-- Progress bar -->
-      <div class="card progress-card">
-        <div class="card-label">Pregnancy progress</div>
-        <div class="progress-track">
-          <div class="progress-bar-wrap">
-            <div class="progress-bar-fill" style="width:${pct}%"></div>
+      <!-- Page header -->
+      <header class="page-header">
+        <div class="header-brand">
+          <div class="header-icon">🌸</div>
+          <div>
+            <div class="header-title">Nurture</div>
+            <div class="header-sub">Pregnancy Overview</div>
           </div>
-          <div class="progress-pct">${pct}%</div>
         </div>
-        <div class="trimester-row">
-          <div class="trimester-chip ${trimester === 1 ? 'active' : ''}">T1 · Wk 1–12</div>
-          <div class="trimester-chip ${trimester === 2 ? 'active' : ''}">T2 · Wk 13–26</div>
-          <div class="trimester-chip ${trimester === 3 ? 'active' : ''}">T3 · Wk 27–40</div>
+        <div class="header-right">
+          <span class="badge-girl">👶 Baby Girl</span>
+          <span class="header-due">📅 Due Mar 19, 2027</span>
         </div>
-      </div>
+      </header>
 
-      <!-- AI stage info -->
-      <div class="card stage-card">
-        <div class="card-label">Week ${weeks}${dayOfWeek > 0 ? ` + ${dayOfWeek} days` : ''} — what's happening</div>
-        ${this._babyLoading ? html`
-          <div class="stage-loading">
-            <div class="stage-dot"></div>
-            <div class="stage-dot"></div>
-            <div class="stage-dot"></div>
-            <span>Loading…</span>
-          </div>
-        ` : this._babyInfo ? html`
-          <div class="stage-body">
-            ${this._babyInfo.split(/\n+/).filter(p => p.trim()).map(p => html`<p>${p}</p>`)}
-          </div>
-        ` : html`<div class="stage-loading"><span>Could not load — check console</span></div>`}
-      </div>
+      <div class="content">
 
-      <!-- Milestones -->
-      <div class="bottom-grid">
+        <!-- Metric cards -->
+        <div class="metrics-row">
+          <!-- Week -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <div class="card-label" style="margin:0">Current Week</div>
+              <span class="trimester-badge">Trimester ${trimester}</span>
+            </div>
+            <div class="metric-big">
+              ${weeks}<span class="metric-accent">${dayOfWeek > 0 ? `+${dayOfWeek}` : ''}</span>
+            </div>
+            <div class="metric-sub">days</div>
+            <div class="metric-footer">
+              <span class="metric-footer-label">of 40 weeks</span>
+              <span class="metric-footer-mono">WK ${weeks} / 40</span>
+            </div>
+          </div>
+
+          <!-- Days to go -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <div class="card-label" style="margin:0">Days to Go</div>
+              <span style="font-size:1.1rem">⏱</span>
+            </div>
+            <div class="metric-big-days">${daysLeft}</div>
+            <div class="metric-sub">days remaining</div>
+            <div class="metric-footer">
+              <span class="metric-footer-label">${nextMilestone ? `Next: Week ${nextMilestone.week}` : 'Almost there!'}</span>
+              ${daysToNext != null ? html`<span class="metric-footer-value">In ${daysToNext} days</span>` : ''}
+            </div>
+          </div>
+
+          <!-- Baby size -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <div class="card-label" style="margin:0">Baby is the size of a</div>
+              <span class="metric-footer-mono">${size.size}</span>
+            </div>
+            <div class="size-row">
+              <span class="size-emoji-lg">${size.emoji}</span>
+              <span class="size-name-lg">${size.name}</span>
+            </div>
+            <div class="metric-footer">
+              <span class="metric-footer-label">Head to heel length</span>
+              <span class="metric-footer-value">${size.size}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress -->
         <div class="card">
-          <div class="card-label">Milestones</div>
-          <div class="milestone-list">
-            ${MILESTONES.map(m => {
-              const done = weeks > m.week;
-              const next = !done && weeks === m.week || (!done && m === nextMilestone);
-              return html`
-                <div class="milestone-item ${done ? 'done' : ''}">
-                  <div class="milestone-dot ${done ? 'done' : next ? 'next' : ''}"></div>
-                  <div class="milestone-body">
-                    <div class="milestone-label">${m.label}</div>
-                    <div class="milestone-week">Week ${m.week}</div>
+          <div class="progress-top">
+            <div>
+              <div class="progress-title">Pregnancy Progress</div>
+              <div class="progress-title-sub">${trimester === 1 ? 'First' : trimester === 2 ? 'Second' : 'Third'} Trimester</div>
+            </div>
+            <span class="progress-pct">${pct}% complete</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="trimester-row">
+            <div class="trimester-chip ${trimester === 1 ? 'active' : trimester > 1 ? 'done' : ''}">
+              <span>T1 · WK 1–12</span>
+              ${trimester > 1 ? html`<span>✓</span>` : trimester === 1 ? html`<span>Current</span>` : html`<span>Upcoming</span>`}
+            </div>
+            <div class="trimester-chip ${trimester === 2 ? 'active' : trimester > 2 ? 'done' : ''}">
+              <span>T2 · WK 13–26</span>
+              ${trimester > 2 ? html`<span>✓</span>` : trimester === 2 ? html`<span>Current</span>` : html`<span>Upcoming</span>`}
+            </div>
+            <div class="trimester-chip ${trimester === 3 ? 'active' : ''}">
+              <span>T3 · WK 27–40</span>
+              ${trimester === 3 ? html`<span>Current</span>` : html`<span>Upcoming</span>`}
+            </div>
+          </div>
+        </div>
+
+        <!-- Split: development + milestones -->
+        <div class="split">
+
+          <!-- Development card -->
+          <div class="card">
+            <div class="dev-header">
+              <div class="dev-week-label">Week ${weeks}${dayOfWeek > 0 ? ` + ${dayOfWeek} Days` : ''} — What's Happening</div>
+              <div class="dev-title">Your Daughter at ${weeks} Weeks</div>
+            </div>
+
+            ${this._babyLoading ? html`
+              <div class="loading">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <span>Loading…</span>
+              </div>
+            ` : paras.length >= 2 ? html`
+              <div class="dev-blocks">
+                ${BLOCK_META.map((meta, i) => paras[i] ? html`
+                  <div class="dev-block">
+                    <div class="dev-block-icon">${meta.icon}</div>
+                    <div>
+                      <div class="dev-block-title">${meta.title}</div>
+                      <p class="dev-block-text">${paras[i]}</p>
+                    </div>
                   </div>
-                  ${next ? html`<span class="milestone-badge">Next</span>` : ''}
-                  ${done ? html`<span style="font-size:0.9rem">✓</span>` : ''}
+                ` : '')}
+              </div>
+            ` : paras.length === 1 ? html`
+              <div class="dev-plain"><p>${paras[0]}</p></div>
+            ` : html`
+              <div class="loading"><span>Could not load — check console</span></div>
+            `}
+          </div>
+
+          <!-- Milestones card -->
+          <div class="card">
+            <div class="milestones-header">
+              <div>
+                <div class="milestones-label">Timeline</div>
+                <div class="milestones-title">Key Milestones</div>
+              </div>
+            </div>
+
+            ${MILESTONES.map(m => {
+              const done   = weeks > m.week;
+              const isNext = !done && m === nextMilestone;
+              const weeksAway = m.week - weeks;
+              return html`
+                <div class="milestone-item ${done ? 'done' : ''} ${isNext ? 'is-next' : ''}">
+                  <div class="milestone-icon ${done ? 'done' : isNext ? 'is-next' : 'upcoming'}">
+                    ${done ? '✓' : isNext ? '⚑' : '○'}
+                  </div>
+                  <div class="milestone-body">
+                    <div class="milestone-name">${m.label}</div>
+                    <div class="milestone-week-label ${isNext ? 'is-next' : ''}">Week ${m.week}</div>
+                  </div>
+                  ${done    ? html`<span class="badge-reached">Reached</span>` : ''}
+                  ${isNext  ? html`<span class="badge-next">Next</span>` : ''}
+                  ${!done && !isNext ? html`<span class="badge-weeks">${weeksAway} wks</span>` : ''}
                 </div>
               `;
             })}
           </div>
+
         </div>
       </div>
     `;
