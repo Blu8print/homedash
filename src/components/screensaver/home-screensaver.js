@@ -567,6 +567,9 @@ export class HomeScreensaver extends LitElement {
     this._fetchWeather();
     this._clockTimer = setInterval(() => { this._time = this._nowTime(); }, 1000);
     this._darkRefreshTimer = setInterval(() => this._loadDarkData(), 5 * 60 * 1000);
+    this._todosChannel = supabase.channel('screensaver-todos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => this._loadDarkData())
+      .subscribe();
     this._weatherTimer = setInterval(() => this._fetchWeather(), 30 * 60 * 1000);
   }
 
@@ -576,6 +579,7 @@ export class HomeScreensaver extends LitElement {
     clearInterval(this._slideTimer);
     clearInterval(this._darkRefreshTimer);
     clearInterval(this._weatherTimer);
+    if (this._todosChannel) supabase.removeChannel(this._todosChannel);
     for (const url of this._blobCache.values()) URL.revokeObjectURL(url);
     this._blobCache.clear();
   }
