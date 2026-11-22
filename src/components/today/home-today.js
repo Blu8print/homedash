@@ -612,6 +612,11 @@ export class HomeToday extends LitElement {
     }
 
     /* ── Upcoming ── */
+    .upcoming-card {
+      flex: 0 0 210px;
+      overflow: hidden;
+    }
+
     .upcoming-list {
       display: flex;
       flex-direction: column;
@@ -1128,13 +1133,13 @@ export class HomeToday extends LitElement {
       .slice(0, 4);
 
     if (!upcoming.length) return html`
-      <div class="card compact">
+      <div class="card upcoming-card">
         <div class="card-label">Upcoming</div>
         <div class="muted">No upcoming events</div>
       </div>
     `;
     return html`
-      <div class="card compact">
+      <div class="card upcoming-card">
         <div class="card-label">Upcoming</div>
         <div class="upcoming-list">
           ${upcoming.map(ev => {
