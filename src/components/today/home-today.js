@@ -308,7 +308,8 @@ export class HomeToday extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      justify-content: center;
+      justify-content: flex-start;
+      padding-top: 4px;
       border-left: 1px solid var(--color-border);
       padding-left: 14px;
       flex-shrink: 0;
