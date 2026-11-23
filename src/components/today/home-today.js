@@ -800,7 +800,7 @@ export class HomeToday extends LitElement {
     } catch {}
 
     const fetchFresh = async () => {
-      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=3&aqi=no&alerts=no`;
+      const url = `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.7741,5.5850&days=3&aqi=no&alerts=no`;
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

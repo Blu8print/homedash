@@ -658,7 +658,7 @@ export class HomeScreensaver extends LitElement {
     if (!WEATHER_KEY) return;
     try {
       const res = await fetch(
-        `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.769,5.557&days=1&aqi=no&alerts=no`
+        `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=51.7741,5.5850&days=1&aqi=no&alerts=no`
       );
       if (!res.ok) return;
       const data = await res.json();
