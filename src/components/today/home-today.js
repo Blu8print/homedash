@@ -93,7 +93,7 @@ const WASTE_META = {
   GFT:        { label: 'GFT',    icon: '♻',  chipBg: '#D4EDDA', chipColor: '#2A6E3B', chipBorder: '#80C98E' },
   PMD:        { label: 'PMD',    icon: '♳',  chipBg: '#FFF3CD', chipColor: '#7A6000', chipBorder: '#F0D060' },
   Restafval:  { label: 'Rest',   icon: '🗑', chipBg: '#E8E8E8', chipColor: '#444444', chipBorder: '#CCCCCC' },
-  Papier:     { label: 'Papier', icon: '📄', chipBg: '#DBEAFE', chipColor: '#1D4ED8', chipBorder: '#93C5FD' },
+  Papier:     { label: 'Paper',  icon: '📄', chipBg: '#DBEAFE', chipColor: '#1D4ED8', chipBorder: '#93C5FD' },
   Kerstbomen: { label: 'Kerst',  icon: '🎄', chipBg: '#D1FAE5', chipColor: '#065F46', chipBorder: '#6EE7B7' },
 };
 
@@ -110,6 +110,7 @@ export class HomeToday extends LitElement {
     _weather:     { state: true },
     _weatherErr:  { state: true },
     _trash:       { state: true },
+    _trashTooltip: { state: true },
     _events:      { state: true },
     _eventsErr:   { state: true },
     _authed:      { state: true },
@@ -609,6 +610,48 @@ export class HomeToday extends LitElement {
       font-size: 0.72rem;
       font-weight: 600;
       border: 1px solid;
+      cursor: pointer;
+    }
+
+    .trash-card { position: relative; }
+    .trash-tap { cursor: pointer; }
+
+    .trash-tooltip-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.4);
+    }
+    .trash-tooltip {
+      background: var(--color-card);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      padding: 0.6rem 1.25rem;
+      text-align: center;
+      min-width: 150px;
+    }
+    .trash-tooltip-icon { font-size: 1.5rem; line-height: 1; margin-bottom: 0.25rem; }
+    .trash-tooltip-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+    .trash-tooltip-days {
+      font-family: var(--font-serif);
+      font-size: 1.3rem;
+      color: var(--color-text);
+      margin-top: 0.2rem;
+      line-height: 1;
+    }
+    .trash-tooltip-date {
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      margin-top: 0.25rem;
     }
 
     /* ── Upcoming ── */
@@ -714,6 +757,7 @@ export class HomeToday extends LitElement {
     this._weather    = null;
     this._weatherErr = null;
     this._trash      = [];
+    this._trashTooltip = null;
     this._events     = [];
     this._eventsErr  = null;
     this._authed     = false;
@@ -850,7 +894,7 @@ export class HomeToday extends LitElement {
     const today = new Date().toISOString().slice(0, 10);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/trash_collection?date=gte.${today}&order=date.asc&limit=4`,
+        `${SUPABASE_URL}/rest/v1/trash_collection?date=gte.${today}&order=date.asc&limit=5`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1094,35 +1138,59 @@ export class HomeToday extends LitElement {
   }
 
   _renderTrash() {
-    if (!this._trash.length) return html`
+    // Today's pickup only shown until noon; skip past dates
+    const pastNoon = new Date().getHours() >= 12;
+    const items = this._trash.filter(t => {
+      const d = daysUntil(t.date);
+      return d > 0 || (d === 0 && !pastNoon);
+    });
+    if (!items.length) return html`
       <div class="card compact">
         <div class="card-label">Trash</div>
         <div class="muted">No upcoming pickups</div>
       </div>
     `;
-    const [next, ...rest] = this._trash;
-    const meta = WASTE_META[next.waste_type] ?? { label: next.waste_type, icon: '?' };
+    const metaOf = type => WASTE_META[type] ?? { label: type, icon: '?', chipBg: '#eee', chipColor: '#444', chipBorder: '#ccc' };
+    const fmt = (d, opts) => new Date(d).toLocaleDateString('en-GB', opts);
+    const [next, ...rest] = items;
+    const meta = metaOf(next.waste_type);
     const days = daysUntil(next.date);
-    const badge = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days}d`;
-    const dateStr = new Date(next.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const badge = days === 0 ? 'Today' : days === 1 ? 'Out tonight' : `in ${days}d`;
+    const open = (r) => { this._trashTooltip = { waste_type: r.waste_type, date: r.date }; };
+
+    const tt = this._trashTooltip;
+    const ttDays = tt ? daysUntil(tt.date) : 0;
+    const ttLabel = ttDays === 0 ? 'Today' : ttDays === 1 ? 'Out tonight' : `in ${ttDays} days`;
+
     return html`
-      <div class="card compact">
+      <div class="card compact trash-card">
         <div class="card-label">Trash</div>
-        <div class="trash-top">
+        <div class="trash-top trash-tap" @click=${() => open(next)}>
           <div class="trash-title">${meta.label}</div>
           <div class="trash-badge">${badge}</div>
         </div>
-        <div class="trash-date">${dateStr}</div>
+        <div class="trash-date">${fmt(next.date, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
         <div class="trash-chips">
           ${rest.slice(0, 3).map(r => {
-            const m = WASTE_META[r.waste_type] ?? { label: r.waste_type, icon: '?', chipBg: '#eee', chipColor: '#444', chipBorder: '#ccc' };
+            const m = metaOf(r.waste_type);
             return html`
-              <div class="trash-chip" style="background:${m.chipBg};color:${m.chipColor};border-color:${m.chipBorder}">
+              <div class="trash-chip" style="background:${m.chipBg};color:${m.chipColor};border-color:${m.chipBorder}"
+                   @click=${() => open(r)}>
                 ${m.icon} ${m.label}
               </div>
             `;
           })}
         </div>
+        ${tt ? html`
+          <div class="trash-tooltip-overlay" @click=${() => { this._trashTooltip = null; }}>
+            <div class="trash-tooltip">
+              <div class="trash-tooltip-icon">${metaOf(tt.waste_type).icon}</div>
+              <div class="trash-tooltip-label">${metaOf(tt.waste_type).label}</div>
+              <div class="trash-tooltip-days">${ttLabel}</div>
+              <div class="trash-tooltip-date">${fmt(tt.date, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+            </div>
+          </div>
+        ` : ''}
       </div>
     `;
   }
