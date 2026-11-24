@@ -21,6 +21,11 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function getMeta(wasteType) {
+  const key = Object.keys(WASTE_META).find(k => k.toLowerCase() === wasteType?.toLowerCase());
+  return key ? WASTE_META[key] : { label: wasteType, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
+}
+
 function badgeText(days) {
   if (days === 0) return 'Today';
   if (days === 1) return 'Out tonight';
@@ -199,6 +204,14 @@ export class HomeTrash extends LitElement {
     this._activeChip = this._activeChip === index ? null : index;
   }
 
+  _renderChipDetail(chips) {
+    if (this._activeChip === null || this._activeChip >= chips.length) return '';
+    const { date, waste_type } = chips[this._activeChip];
+    const meta = getMeta(waste_type);
+    const days = daysUntil(date);
+    return html`<div class="chip-detail">${meta.icon} ${meta.label} — ${formatDate(date)} · ${badgeText(days)}</div>`;
+  }
+
   render() {
     if (this._loading) return html`<div class="card"><div class="status">Loading...</div></div>`;
     if (this._error)   return html`<div class="card"><div class="status">Error: ${this._error}</div></div>`;
@@ -207,7 +220,7 @@ export class HomeTrash extends LitElement {
     if (visible.length === 0) return html`<div class="card"><div class="status">No upcoming collections</div></div>`;
 
     const [primary, ...chips] = visible;
-    const primaryMeta = WASTE_META[primary.waste_type] ?? { label: primary.waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
+    const primaryMeta = getMeta(primary.waste_type);
     const primaryDays = daysUntil(primary.date);
 
     return html`
@@ -231,7 +244,7 @@ export class HomeTrash extends LitElement {
         ${chips.length > 0 ? html`
           <div class="chips">
             ${chips.map(({ date, waste_type }, i) => {
-              const meta = WASTE_META[waste_type] ?? { label: waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
+              const meta = getMeta(waste_type);
               return html`
                 <div
                   class="chip"
@@ -243,12 +256,7 @@ export class HomeTrash extends LitElement {
               `;
             })}
           </div>
-          ${this._activeChip !== null ? (() => {
-            const { date, waste_type } = chips[this._activeChip];
-            const meta = WASTE_META[waste_type] ?? { label: waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
-            const days = daysUntil(date);
-            return html`<div class="chip-detail">${meta.icon} ${meta.label} — ${formatDate(date)} · ${badgeText(days)}</div>`;
-          })() : ''}
+          ${this._renderChipDetail(chips)}
         ` : ''}
       </div>
     `;
