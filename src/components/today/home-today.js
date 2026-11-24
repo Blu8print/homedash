@@ -894,7 +894,7 @@ export class HomeToday extends LitElement {
     const today = new Date().toISOString().slice(0, 10);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/trash_collection?date=gte.${today}&order=date.asc&limit=5`,
+        `${SUPABASE_URL}/rest/v1/trash_collection?date=gte.${today}&order=date.asc&limit=30`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1171,7 +1171,8 @@ export class HomeToday extends LitElement {
         </div>
         <div class="trash-date">${fmt(next.date, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
         <div class="trash-chips">
-          ${rest.slice(0, 3).map(r => {
+          ${rest.filter((r, i) => r.waste_type !== next.waste_type
+                && rest.findIndex(x => x.waste_type === r.waste_type) === i).map(r => {
             const m = metaOf(r.waste_type);
             return html`
               <div class="trash-chip" style="background:${m.chipBg};color:${m.chipColor};border-color:${m.chipBorder}"
