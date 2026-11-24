@@ -134,30 +134,14 @@ export class HomeTrash extends LitElement {
     }
     .chip:active { opacity: 0.75; }
 
-    /* Tooltip */
-    .tooltip {
-      position: absolute;
-      bottom: calc(100% + 6px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: #1a1a1a;
-      color: #fff;
-      font-size: 0.7rem;
-      font-weight: 500;
-      padding: 4px 8px;
+    /* Chip detail row */
+    .chip-detail {
+      margin-top: 0.4rem;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+      padding: 4px 6px;
+      background: var(--color-card-alt);
       border-radius: 6px;
-      white-space: nowrap;
-      pointer-events: none;
-      z-index: 10;
-    }
-    .tooltip::after {
-      content: '';
-      position: absolute;
-      top: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      border: 4px solid transparent;
-      border-top-color: #1a1a1a;
     }
 
     .status {
@@ -248,8 +232,6 @@ export class HomeTrash extends LitElement {
           <div class="chips">
             ${chips.map(({ date, waste_type }, i) => {
               const meta = WASTE_META[waste_type] ?? { label: waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
-              const days = daysUntil(date);
-              const active = this._activeChip === i;
               return html`
                 <div
                   class="chip"
@@ -257,13 +239,16 @@ export class HomeTrash extends LitElement {
                   @click=${() => this._toggleChip(i)}
                 >
                   ${meta.icon} ${meta.label}
-                  ${active ? html`
-                    <span class="tooltip">${formatDate(date)} · ${badgeText(days)}</span>
-                  ` : ''}
                 </div>
               `;
             })}
           </div>
+          ${this._activeChip !== null ? (() => {
+            const { date, waste_type } = chips[this._activeChip];
+            const meta = WASTE_META[waste_type] ?? { label: waste_type, color: '#6b7280', bg: '#f3f4f6', icon: '?' };
+            const days = daysUntil(date);
+            return html`<div class="chip-detail">${meta.icon} ${meta.label} — ${formatDate(date)} · ${badgeText(days)}</div>`;
+          })() : ''}
         ` : ''}
       </div>
     `;
