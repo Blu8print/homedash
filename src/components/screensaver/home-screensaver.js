@@ -43,9 +43,16 @@ const WASTE_META = {
   GFT:        { label: 'GFT',    icon: '♻️' },
   PMD:        { label: 'PMD',    icon: '♳'  },
   Restafval:  { label: 'Rest',   icon: '🗑️' },
-  Papier:     { label: 'Papier', icon: '📄' },
+  Papier:     { label: 'Paper',  icon: '📄' },
   Kerstbomen: { label: 'Kerst',  icon: '🎄' },
 };
+
+// Local YYYY-MM-DD, offset in days
+function localDate(offset = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const QUOTES = [
   '"The secret of getting ahead is getting started." — Mark Twain',
@@ -717,8 +724,9 @@ export class HomeScreensaver extends LitElement {
   }
 
   async _loadDarkData() {
-    const today    = new Date().toISOString().slice(0, 10);
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    // Fetch through day-after-tomorrow so data stays valid across midnight
+    const today    = localDate(0);
+    const tomorrow = localDate(2);
     const [todosRes, shoppingRes, trashRes] = await Promise.all([
       supabase.from('todos').select('person,done,bucket'),
       supabase.from('shopping_items').select('*', { count: 'exact', head: true }).eq('done', false),
@@ -813,13 +821,12 @@ export class HomeScreensaver extends LitElement {
         return diff >= 0 && diff <= twoHours;
       };
 
-      // Trash banner: items due today or tomorrow
-      const todayStr    = new Date().toISOString().slice(0, 10);
-      const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-      const trashToday  = this._darkTrash.filter(t => t.date === todayStr);
-      const trashTomorrow = this._darkTrash.filter(t => t.date === tomorrowStr);
-      const trashItems  = trashToday.length ? trashToday : trashTomorrow;
-      const trashLabel  = trashToday.length ? 'tonight' : 'tomorrow night';
+      // Trash banner: today's pickup until noon, otherwise tomorrow's → "out tonight"
+      const beforeNoon    = new Date().getHours() < 12;
+      const trashToday    = beforeNoon ? this._darkTrash.filter(t => t.date === localDate(0)) : [];
+      const trashTomorrow = this._darkTrash.filter(t => t.date === localDate(1));
+      const trashItems    = trashToday.length ? trashToday : trashTomorrow;
+      const trashLabel    = trashToday.length ? 'today' : 'out tonight';
 
       // Chore rings — done/total across all buckets
       const choreData = DARK_PEOPLE.map(p => {
@@ -841,7 +848,7 @@ export class HomeScreensaver extends LitElement {
             ${trashItems.length ? html`
               <div class="trash-banner">
                 <span>🗑️</span>
-                ${trashItems.map(t => (WASTE_META[t.waste_type]?.label ?? t.waste_type)).join(' · ')} · Put out ${trashLabel}
+                ${trashItems.map(t => (WASTE_META[t.waste_type]?.label ?? t.waste_type)).join(' · ')} ${trashLabel}
               </div>
             ` : ''}
             <div class="ss-dark-layout">
