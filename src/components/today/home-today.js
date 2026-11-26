@@ -891,7 +891,8 @@ export class HomeToday extends LitElement {
 
   // ── Trash ──────────────────────────────────────────────────────────────────
   async _loadTrash() {
-    const today = new Date().toISOString().slice(0, 10);
+    const n = new Date();
+    const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/trash_collection?date=gte.${today}&order=date.asc&limit=30`,
@@ -1056,9 +1057,10 @@ export class HomeToday extends LitElement {
     const todayMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
 
     const eventsForDay = (day) => {
-      const dateStr = day.toISOString().slice(0, 10);
+      const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dateStr = ymd(day);
       return this._events.filter(ev => {
-        const evDate = ev.start?.dateTime?.slice(0, 10) ?? ev.start?.date;
+        const evDate = ev.start?.dateTime ? ymd(new Date(ev.start.dateTime)) : ev.start?.date;
         return evDate === dateStr;
       });
     };
